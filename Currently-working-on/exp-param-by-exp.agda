@@ -41,6 +41,8 @@ open import Data.Unit
 open import Data.Nat
 open import Data.Bool
 
+module exp-param-by-exp where
+
 i = lsuc (lsuc (lsuc (lsuc lzero))) -- type level 4
 j = lsuc i -- type level 1+i
 k = lsuc j -- type level 1+i
@@ -48,7 +50,7 @@ k = lsuc j -- type level 1+i
 mutual
   data Context : Set i → Set j where
     ∅ : Context ⊤
-    _,_ : ∀{aΓ} → (ctx : Context aΓ) → (T : aΓ → Set i) → Context (Σ aΓ T)
+    _,_ : ∀{aΓ} → (ctx : Context aΓ) → (T : aΓ → Set i) → Context (Σ {i} {i} aΓ T)
 
   data InCtx : ∀{aΓ} → (Γ : Context aΓ) → (aΓ → Set i) → Set j where
     same : ∀{aΓ T} → {Γ : Context aΓ} → InCtx (Γ , T) (λ γ → T (proj₁ γ))
@@ -61,10 +63,10 @@ mutual
 
 mutual
   data Exp : ∀{aΓ} → (Γ : Context aΓ) → (aΓ → Set i) → Set j where
-    Lambda : ∀{aΓ} → {Γ : Context aΓ} → {A : aΓ → Set i} → {B : (Σ aΓ A) → Set i} →
+    Lambda : ∀{aΓ} → {Γ : Context aΓ} → {A : aΓ → Set i} → {B : (Σ {i} {i} aΓ A) → Set i} →
       Exp (Γ , A) B → Exp Γ (λ γ → ((x : A γ) → B (γ , x)))
     Var : ∀{aΓ Γ T} → (icx : InCtx Γ T) → Exp {aΓ} Γ T
-    App : ∀{aΓ} → {Γ : Context aΓ} → {A : aΓ → Set i} → {B : (Σ aΓ A) → Set i} →
+    App : ∀{aΓ} → {Γ : Context aΓ} → {A : aΓ → Set i} → {B : (Σ {i} {i} aΓ A) → Set i} →
         Exp Γ (λ γ → (a : A γ) → B (γ , a)) → (x : Exp Γ A) → Exp Γ (λ γ → B (γ , unq γ x))
     Π₀ : ∀{aΓ} → {Γ : Context aΓ} → (A : Exp Γ (λ _ → Set))
       → (B : Exp (Γ , (λ γ → unq γ A)) (λ _ → Set))
@@ -81,33 +83,103 @@ mutual
   unq γ 𝓤₀ = Set
   unq γ ⋆ = tt
 
+aRen : Set i → Set i → Set i
+aRen aΓ₁ aΓ₂ = aΓ₂ → aΓ₁
+
+Ren : {aΓ₁ aΓ₂ : Set i} → aRen aΓ₁ aΓ₂ → Context aΓ₁ → Context aΓ₂ → Set j
+Ren aren Γ₁ Γ₂ = ∀{T} → InCtx Γ₁ T → InCtx Γ₂ (λ γ → T (aren γ))
+
+idaRen : {aΓ : Set i} → aRen aΓ aΓ
+idaRen γ = γ
+
+idRen : {aΓ : Set i} → {Γ : Context aΓ} → Ren idaRen Γ Γ
+idRen x = x
+
+weaken1aRen : {aΓ₁ aΓ₂ : Set i} → {T : aΓ₁ → Set i} → (aren : aRen aΓ₁ aΓ₂)
+  → aRen (Σ {i} {i} aΓ₁ T) (Σ {i} {i} aΓ₂ (λ γ → T (aren γ)))
+weaken1aRen ar (γ , t) = ar γ , t
+
+weaken1Ren : {aΓ₁ aΓ₂ : Set i} → {T : aΓ₁ → Set i} → {Γ₁ : Context aΓ₁} → {Γ₂ : Context aΓ₂} → (aren : aRen aΓ₁ aΓ₂)
+  → Ren aren Γ₁ Γ₂
+  → Ren (weaken1aRen aren) (Γ₁ , T) (Γ₂ , (λ γ → T (aren γ)))
+weaken1Ren ar r same = same
+weaken1Ren ar r (next x) = next (r x)
+
 mutual
 
-  data Args : ∀{aΓ} → Context aΓ → (aΓ → Set i) → Set j where
-    ∅ : ∀{aΓ Γ} → Args {aΓ} Γ (λ _ → ⊤)
-    _,_ : ∀{aΓ Γ aargs} → (ctx : Args {aΓ} Γ aargs)
-      → (T : (γ : aΓ) → aargs γ → Set i) → Args Γ (λ γ → Σ (aargs γ)  (T γ))
+  data Args : ∀{aΓ} → Context aΓ → Set j where
+    none : ∀{aΓ Γ} → Args {aΓ} Γ
+    one : ∀{aΓ Γ} → (ctx : Args {aΓ} Γ)
+      → (T : (γ : aΓ) → Set i) → Args Γ
 
-  -- data Exp2 : ∀{aΓ} → (Γ : Context aΓ) → (T : aΓ → Set j)
-  --   → ((γ : aΓ) → T γ) → Set k where
-  --   ⋆ : ∀{aΓ Γ} → Exp2 {aΓ} Γ (λ _ → Exp Γ (λ _ → ⊤)) (λ _ → ⋆)
-  --   Var : ∀{aΓ Γ T} → (icx : InCtx {aΓ} Γ T)
-  --     → Exp2 Γ T (proj icx)
+  -- PUExp : ∀{aΓ} → (Γ : Context aΓ) → (T : aΓ → Set i) → Args Γ T → Set j
+  -- PUExp  Γ T none = Exp Γ T
+  -- PUExp Γ T (one args A) = {! (GExp Γ A) → ?  !}
 
-  -- Essentially, Exp2 is supposed to be parametrized by (Sem Γ T)
-  -- so the Sem type and its elements are built up at once.
+  -- APUExp : ∀{aΓ} → (Γ : Context aΓ) → (aΓ → Set i) → Set j
+  -- APUExp Γ T = (args : Args Γ T) → PUExp Γ T args
 
-  addArg : ∀{aΓ A aargs} → {Γ : Context aΓ} → Args (Γ , A) aargs
-    → Args Γ (λ γ → Σ (A γ) (λ a → aargs (γ , a)))
-  addArg {_} {A} ∅ = {! ∅ , A  !}
-  addArg {_} {A} (args , T₁) = {!   !}
+  -- GExp : ∀{aΓ} → (Γ : Context aΓ) → (aΓ → Set i) → Set j
+  -- GExp Γ T = ∀{aΓ' aren} → {Γ' : Context aΓ'} → Ren aren Γ Γ' → APUExp Γ' (λ γ → T (aren γ))
 
-  data Exp2 : ∀{aΓ aargs} → (Γ : Context aΓ) → Args Γ aargs → (T : aΓ → Set j)
-    → ((γ : aΓ) → T γ) → Set k where
-    ⋆ : ∀{aΓ Γ} → Exp2 {aΓ} Γ ∅ (λ _ → Exp Γ (λ _ → ⊤)) (λ _ → ⋆)
-    -- Var : ∀{aΓ Γ T} → (icx : InCtx {aΓ} Γ T)
-      -- → Exp2 Γ T (proj icx)
-    Lambda : ∀{aΓ A B a} → {Γ : Context aΓ} → ∀{aargs} → {args : Args (Γ , A) aargs}
-      → Exp2 (Γ , A) args B a
-      → let yeet = Args._,_ args λ γ b → A (proj₁ γ)
-        in Exp2 Γ {! yeet  !} {!   !} {!   !}
+  -- IDEA: do something that wont work in general, but just to think with,
+  -- will be able to do (λ x . x) ⋆ ↦ ⋆
+  data Exp3 : (T : Set j) → T → Set k where
+    ⋆ : ∀{aΓ Γ} → Exp3 (Exp {aΓ} Γ (λ _ → ⊤)) ⋆
+    Var : ∀{aΓ Γ T} → (icx : InCtx {aΓ} Γ T)
+      → Exp3 (Exp Γ T) (Var icx)
+    -- so essentially just for simplicity, we assume that all Lambdas are applied. Doesn't work in general though.
+    Lambda0 : ∀{aΓ} → {Γ : Context aΓ} → {A : aΓ → Set i} → {B : (Σ {i} {i} aΓ A) → Set i} →  ∀{a}
+      → Exp3 (Exp (Γ , A) B) a
+      → Exp3 (Exp Γ (λ γ → ((x : A γ) → B (γ , x)))) (Lambda a)
+    Lambda1 : ∀{aΓ} → {Γ : Context aΓ} → {A : aΓ → Set i} → {B : (Σ {i} {i} aΓ A) → Set i} →  ∀{a}
+      → Exp3 (Exp (Γ , A) B) a
+      → Exp3 ((x : Exp Γ A) → Exp Γ (λ γ → B (γ , unq γ x) )) (λ x → {!   !} )
+    -- App : ∀{aΓ} → {Γ : Context aΓ} → {A : aΓ → Set i} → {B : (γ : aΓ) → A γ → Set i} → ∀{a₁ a₂}
+      -- → Exp3 (Exp Γ (λ γ → (a : A γ) → B γ a)) a₁ → (x : Exp3 (Exp Γ A) a₂)
+      -- → Exp3 (Exp Γ  (λ γ → B γ (a₂ γ))) (λ γ → (a₁ γ) (a₂ γ))
+
+example1 : Exp3 (Exp ∅ (λ _ → ⊤)) _
+example1 = ⋆
+
+-- example2 : Exp3 ∅ (λ _ → Exp ∅ (λ _ → ⊤)) _
+-- example2 = App {! Exp3.Lambda (Exp3.Var same)  !} ⋆
+
+module idEmbedding where
+  data Exp2 : ∀{aΓ} → (Γ : Context aΓ) → (T : aΓ → Set i)
+    → (Exp Γ T) → Set j where
+    Lambda : ∀{aΓ} → {Γ : Context aΓ} → {A : aΓ → Set i} → {B : (Σ aΓ A) → Set i} → ∀{a}
+      → Exp2 (Γ , A) B a → Exp2 Γ (λ γ → ((x : A γ) → B (γ , x))) (Lambda a)
+    Var : ∀{aΓ Γ T} → (icx : InCtx Γ T) → Exp2 {aΓ} Γ T (Var icx)
+    App : ∀{aΓ} → {Γ : Context aΓ} → {A : aΓ → Set i} → {B : (Σ aΓ A) → Set i} → ∀{a₁ a₂}
+        → Exp2 Γ (λ γ → (a : A γ) → B (γ , a)) a₁ → (x : Exp2 Γ A a₂) → Exp2 Γ (λ γ → B (γ , unq γ a₂)) (App a₁ a₂)
+    ⋆ : ∀{aΓ Γ} → Exp2 {aΓ} Γ (λ _ → ⊤) ⋆
+
+  extract : ∀{aΓ} → {Γ : Context aΓ} → {T : aΓ → Set i} → ∀{a} → Exp2 Γ T a → Exp Γ T
+  extract {_} {_} {_} {a} e = a
+
+  ex1 : Exp2 ∅ (λ _ → (X : Set) → X → X) _
+  ex1 = Lambda (Lambda (Var same))
+
+  check : (extract ex1) ≡ Lambda (Lambda (Var same))
+  check = refl
+
+module renEmbedding where
+  data Exp2 : ∀{aΓ} → (Γ : Context aΓ) → (T : aΓ → Set i)
+    → (∀{aΓ'} → {Γ' : Context aΓ'} → {aren : aRen aΓ aΓ'} → Ren aren Γ Γ' → Exp Γ' (λ γ → T (aren γ)))
+    → Set j where
+    Lambda : ∀{aΓ} → {Γ : Context aΓ} → {A : aΓ → Set i} → {B : (Σ {i} {i} aΓ A) → Set i} → {a : {aΓ' : Set i} {Γ' : Context aΓ'} {aren : aRen (Σ {i} {i} aΓ A) aΓ'} → Ren aren (Γ , A) Γ' → Exp Γ' (λ γ → B (aren γ))}
+      → Exp2 (Γ , A) B a → Exp2 Γ (λ γ → ((x : A γ) → B (γ , x))) (λ r → Lambda (a {! weaken1Ren  !} ) )
+    -- Var : ∀{aΓ Γ T} → (icx : InCtx Γ T) → Exp2 {aΓ} Γ T (Var icx)
+    -- App : ∀{aΓ} → {Γ : Context aΓ} → {A : aΓ → Set i} → {B : (Σ aΓ A) → Set i} → ∀{a₁ a₂}
+    --     → Exp2 Γ (λ γ → (a : A γ) → B (γ , a)) a₁ → (x : Exp2 Γ A a₂) → Exp2 Γ (λ γ → B (γ , unq γ a₂)) (App a₁ a₂)
+    ⋆ : ∀{aΓ Γ} → Exp2 {aΓ} Γ (λ _ → ⊤) (λ r → ⋆)
+
+{-
+
+TODO: fix lambda case, do var case.
+
+THEN: is App case impossible? It might be because the unq has to work out...
+if it is impossible, then probably this whole plan is nothing...
+
+-}
