@@ -100,7 +100,7 @@ var₀ = proj₂
 -- EXAMPLE:
 -- λ X x . x : (X : Set) → X → X
 exType : Type₁ nil
-exType = Π₁ U₀ (Π₁ varT₀ (weakenT₁ varT₀))
+exType = Π₁ U₀ (Π₀ varT₀ (weakenT₀ varT₀))
 
 exTerm : Term₁ nil exType
 exTerm = lambda₁ (lambda₀ var₀) -- note some shenanigans with type level cumulativity combined with it being a shallow embedding, to Type₀ < Type₁ essentially.
@@ -141,68 +141,87 @@ Pcons₁ : ∀{Γ₁ Γ₂} → (Γ : PCtx Γ₁ Γ₂) → ∀{T₁ T₂} → P
 Pcons₁ Γ T (γ₁ , t₁) (γ₂ , t₂) = Σ {i} {i} (Γ γ₁ γ₂) (λ γ → T γ t₁ t₂)
 
 -- Type constructors
-PU₀ : ∀{Γ₁ Γ₂} → {Γ : PCtx Γ₁ Γ₂} → PType₁ Γ U₀ U₀
-PU₀ γ A B = A → B → Set₁ -- is it correct that this is Set₁? Corresponds with Set₂ in def of PType₁
 
-PΠ₀ : ∀{Γ₁ Γ₂} → {Γ : PCtx Γ₁ Γ₂} → ∀{A₁ A₂ B₁ B₂}
+-- Note that it would be desirable to have the Γ argument implicit, but it doesn't work.
+PU₀ : ∀{Γ₁ Γ₂} → (Γ : PCtx Γ₁ Γ₂) → PType₁ Γ U₀ U₀
+PU₀ Γ γ A B = A → B → Set₁ -- is it correct that this is Set₁? Corresponds with Set₂ in def of PType₁
+
+-- Note that it would be desirable to have the Γ argument implicit, but it doesn't work.
+PΠ₀ : ∀{Γ₁ Γ₂} → (Γ : PCtx Γ₁ Γ₂) → ∀{A₁ A₂ B₁ B₂}
   → (A : PType₀ Γ A₁ A₂) → (B : PType₀ (Pcons₀ Γ A) B₁ B₂) → PType₀ Γ (Π₀ A₁ B₁) (Π₀ A₂ B₂)
-PΠ₀ {Γ₁} {Γ₂} {Γ} {A₁} {A₂} A B {γ₁} {γ₂} γ f₁ f₂
+PΠ₀ {Γ₁} {Γ₂} Γ {A₁} {A₂} A B {γ₁} {γ₂} γ f₁ f₂
   = {a₁ : A₁ γ₁} → {a₂ : A₂ γ₂} → (aR : A γ a₁ a₂) → B (γ , aR) (f₁ a₁) (f₂ a₂)
 
-PΠ₁ : ∀{Γ₁ Γ₂} → {Γ : PCtx Γ₁ Γ₂} → ∀{A₁ A₂ B₁ B₂}
+-- Note that it would be desirable to have the Γ argument implicit, but it doesn't work.
+PΠ₁ : ∀{Γ₁ Γ₂} → (Γ : PCtx Γ₁ Γ₂) → ∀{A₁ A₂ B₁ B₂}
   → (A : PType₁ Γ A₁ A₂) → (B : PType₁ (Pcons₁ Γ A) B₁ B₂) → PType₁ Γ (Π₁ A₁ B₁) (Π₁ A₂ B₂)
-PΠ₁ {Γ₁} {Γ₂} {Γ} {A₁} {A₂} A B {γ₁} {γ₂} γ f₁ f₂
+PΠ₁ {Γ₁} {Γ₂} Γ {A₁} {A₂} A B {γ₁} {γ₂} γ f₁ f₂
   = {a₁ : A₁ γ₁} → {a₂ : A₂ γ₂} → (aR : A γ a₁ a₂) → B (γ , aR) (f₁ a₁) (f₂ a₂)
 
-PweakenT₀ : ∀{Γ₁ Γ₂} → {Γ : PCtx Γ₁ Γ₂} → ∀{A₁ A₂ T₁ T₂} → {A : PType₀ Γ A₁ A₂}
+-- note that it would be desirable to have Γ and A be implicit, but Agda can't infer things without them later on.
+PweakenT₀ : ∀{Γ₁ Γ₂} → (Γ : PCtx Γ₁ Γ₂) → ∀{A₁ A₂ T₁ T₂} → (A : PType₀ Γ A₁ A₂)
   → PType₀ Γ T₁ T₂ → PType₀ (Pcons₀ Γ A) (weakenT₀ T₁) (weakenT₀ T₂)
-PweakenT₀ T = λ γ → T (proj₁ γ)
+PweakenT₀ Γ A T = λ γ → T (proj₁ γ)
 
-PweakenT₁ : ∀{Γ₁ Γ₂} → {Γ : PCtx Γ₁ Γ₂} → ∀{A₁ A₂ T₁ T₂} → {A : PType₁ Γ A₁ A₂}
+PweakenT₁ : ∀{Γ₁ Γ₂} → (Γ : PCtx Γ₁ Γ₂) → ∀{A₁ A₂ T₁ T₂} → (A : PType₁ Γ A₁ A₂)
   → PType₁ Γ T₁ T₂ → PType₁ (Pcons₁ Γ A) (weakenT₁ T₁) (weakenT₁ T₂)
-PweakenT₁ T = λ γ → T (proj₁ γ)
+PweakenT₁ Γ A T = λ γ → T (proj₁ γ)
 
--- sort of weird that PU₀ needs the {Γ} argument below.
-PvarT₀ : ∀{Γ₁ Γ₂} → {Γ : PCtx Γ₁ Γ₂} → PType₀ (Pcons₁ Γ (PU₀ {_} {_} {Γ})) varT₀ varT₀
-PvarT₀ = proj₂
+PvarT₀ : ∀{Γ₁ Γ₂} → (Γ : PCtx Γ₁ Γ₂) → PType₀ (Pcons₁ Γ (PU₀ Γ)) varT₀ varT₀
+PvarT₀ Γ = proj₂
 
-Psub₀ : ∀{Γ₁ Γ₂} → {Γ : PCtx Γ₁ Γ₂} → ∀{A₁ A₂ T₁ T₂ e₁ e₂} → {A : PType₀ Γ A₁ A₂}
+-- note that it would be desirable to have Γ and A be implicit, but Agda can't infer things without them later on.
+Psub₀ : ∀{Γ₁ Γ₂} → (Γ : PCtx Γ₁ Γ₂) → ∀{A₁ A₂ T₁ T₂ e₁ e₂} → (A : PType₀ Γ A₁ A₂)
   → PType₀ (Pcons₀ Γ A) T₁ T₂ → PTerm₀ Γ A e₁ e₂ → PType₀ Γ (sub₀ T₁ e₁) (sub₀ T₂ e₂)
-Psub₀ T e = λ γ → T (γ , e γ)
+Psub₀ Γ A T e = λ γ → T (γ , e γ)
 
 -- Term constructors
 
-Plambda₀ : ∀{Γ₁ Γ₂} → {Γ : PCtx Γ₁ Γ₂} → ∀{A₁ A₂} → {A : PType₀ Γ A₁ A₂}
-  → ∀{B₁ B₂} → {B : PType₀ (Pcons₀ Γ A) B₁ B₂}
-  → ∀{e₁ e₂} → PTerm₀ (Pcons₀ Γ A) B e₁ e₂ → PTerm₀ Γ (PΠ₀ {_} {_} {Γ} A B) (lambda₀ e₁) (lambda₀ e₂)
-Plambda₀ e = λ γ a → e (γ , a)
+Plambda₀ : ∀{Γ₁ Γ₂} → (Γ : PCtx Γ₁ Γ₂) → ∀{A₁ A₂} → (A : PType₀ Γ A₁ A₂)
+  → ∀{B₁ B₂} → (B : PType₀ (Pcons₀ Γ A) B₁ B₂)
+  → ∀{e₁ e₂} → PTerm₀ (Pcons₀ Γ A) B e₁ e₂ → PTerm₀ Γ (PΠ₀ Γ A B) (lambda₀ e₁) (lambda₀ e₂)
+Plambda₀ Γ A B e = λ γ a → e (γ , a)
 
-Plambda₁ : ∀{Γ₁ Γ₂} → {Γ : PCtx Γ₁ Γ₂} → ∀{A₁ A₂} → {A : PType₁ Γ A₁ A₂}
-  → ∀{B₁ B₂} → {B : PType₁ (Pcons₁ Γ A) B₁ B₂}
-  → ∀{e₁ e₂} → PTerm₁ (Pcons₁ Γ A) B e₁ e₂ → PTerm₁ Γ (PΠ₁ {_} {_} {Γ} A B) (lambda₁ e₁) (lambda₁ e₂)
-Plambda₁ e = λ γ a → e (γ , a)
+Plambda₁ : ∀{Γ₁ Γ₂} → (Γ : PCtx Γ₁ Γ₂) → ∀{A₁ A₂} → (A : PType₁ Γ A₁ A₂)
+  → ∀{B₁ B₂} → (B : PType₁ (Pcons₁ Γ A) B₁ B₂)
+  → ∀{e₁ e₂} → PTerm₁ (Pcons₁ Γ A) B e₁ e₂ → PTerm₁ Γ (PΠ₁ Γ A B) (lambda₁ e₁) (lambda₁ e₂)
+Plambda₁ Γ A B e = λ γ a → e (γ , a)
 
--- note the crazy implicit arguments needed for Psub₀. I have no explanation for why some things are needed and others aren't. Then again, I havent thought about it.
 Papp₀ : ∀{Γ₁ Γ₂} → {Γ : PCtx Γ₁ Γ₂} → ∀{A₁ A₂} → {A : PType₀ Γ A₁ A₂}
   → ∀{B₁ B₂} → {B : PType₀ (Pcons₀ Γ A) B₁ B₂}
-  → ∀{e₁ e₂ e₁' e₂'} → PTerm₀ Γ (PΠ₀ {_} {_} {Γ} A B) e₁ e₂ → (x : PTerm₀ Γ A e₁' e₂')
-  → PTerm₀ Γ (Psub₀ {_} {_} {Γ} {A₁} {A₂} {_} {_} {e₁'} {e₂'} {A} B x) (app₀ e₁ e₁') (app₀ e₂ e₂')
+  → ∀{e₁ e₂ e₁' e₂'} → PTerm₀ Γ (PΠ₀ Γ A B) e₁ e₂ → (x : PTerm₀ Γ A e₁' e₂')
+  → PTerm₀ Γ (Psub₀ Γ A B x) (app₀ e₁ e₁') (app₀ e₂ e₂')
 Papp₀ e₁ e₂ = λ γ → (e₁ γ) (e₂ γ)
 
 Pweaken₀ : ∀{Γ₁ Γ₂} → {Γ : PCtx Γ₁ Γ₂} → ∀{A₁ A₂ T₁ T₂} → {A : PType₀ Γ A₁ A₂}
   → {T : PType₀ Γ T₁ T₂} → ∀{e₁ e₂}
-  → PTerm₀ Γ T e₁ e₂ → PTerm₀ (Pcons₀ Γ A) (PweakenT₀ {_} {_} {Γ} {_} {_} {_} {_} {A} T) (weaken₀ e₁) (weaken₀ e₂)
+  → PTerm₀ Γ T e₁ e₂ → PTerm₀ (Pcons₀ Γ A) (PweakenT₀ Γ A T) (weaken₀ e₁) (weaken₀ e₂)
 Pweaken₀ e = λ γ → e (proj₁ γ)
 
-Pvar₀ : ∀{Γ₁ Γ₂} → {Γ : PCtx Γ₁ Γ₂} → ∀{T₁ T₂} → {T : PType₀ Γ T₁ T₂}
-  → PTerm₀ (Pcons₀ Γ T) (PweakenT₀ {_} {_} {Γ} {_} {_} {_} {_} {T} T) var₀ var₀
-Pvar₀ = proj₂
+Pvar₀ : ∀{Γ₁ Γ₂} → (Γ : PCtx Γ₁ Γ₂) → ∀{T₁ T₂} → (T : PType₀ Γ T₁ T₂)
+  → PTerm₀ (Pcons₀ Γ T) (PweakenT₀ Γ T T) var₀ var₀
+Pvar₀ Γ T = proj₂
 
 
 -- EXAMPLE:
 -- λ X x . x : (X : Set) → X → X
 PexType : PType₁ Pnil exType exType
-PexType = PΠ₁ PU₀ (PΠ₁ PvarT₀ (PweakenT₁ PvarT₀))
+PexType = PΠ₁ Pnil (PU₀ Pnil) (PΠ₀ (Pcons₁ Pnil (PU₀ Pnil)) (PvarT₀ Pnil) (PweakenT₀ (Pcons₁ Pnil (PU₀ Pnil)) (PvarT₀ Pnil) (PvarT₀ Pnil)))
 
--- PexTerm : Term₁ nil exType
--- PexTerm = lambda₁ (lambda₀ var₀) -- note some shenanigans with type level cumulativity combined with it being a shallow embedding, to Type₀ < Type₁ essentially.
+
+
+PexTerm : PTerm₁ Pnil PexType exTerm exTerm
+PexTerm = Plambda₁ Pnil (PU₀ Pnil) ((PΠ₁ (Pcons₁ Pnil (PU₀ Pnil)) (PvarT₀ Pnil) (PweakenT₀ (Pcons₁ Pnil (PU₀ Pnil)) (PvarT₀ Pnil) (PvarT₀ Pnil)))) (Plambda₀ (Pcons₁ Pnil (PU₀ Pnil)) (PvarT₀ Pnil) ((PweakenT₀ (Pcons₁ Pnil (PU₀ Pnil)) (PvarT₀ Pnil) (PvarT₀ Pnil))) (Pvar₀ (Pcons₁ Pnil (PU₀ Pnil)) (PvarT₀ Pnil) ))
+
+-- ↑ this is the worst thing I've ever written...
+{-
+
+Theoretically, in order to write PexType and PexTerm, it should only be necessary to write the same code as exType and exTerm,
+except replace U₀ with PU₀, and Type with PType, etc...
+
+However, agda needs extra arguments in order to be able to infer things. I'm not sure exactly what causes this or how to fix it.
+
+Either way, try typing "ctrl-n PexType" or "ctrl-n PexTerm" in order to make agda normalize the terms for you.
+They are parametricity for the identity function!
+
+-}
