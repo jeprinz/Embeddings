@@ -19,7 +19,7 @@ I also referenced: https://bitbucket.org/akaposi/shallow/src/master/Agda/Param.a
 
 -}
 
--- module parametricity-shallow-embedding where
+module parametricity-shallow-embedding where
 
 --------------------------------------------------------------------------------
 -- STANDARD SHALLOW EMBEDDING --
