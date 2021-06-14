@@ -44,11 +44,14 @@ mutual -- Γ ⊢ e : T    corresponds to     e : Exp Γ T
   unq γ (EndCtx) = proj₂ γ
   unq γ (App e₁ e₂) = (unq γ e₁) (unq γ e₂)
 
+id : Exp ⊤ (λ _ → (X : Set) → X → X)
+id = Lambda (Lambda EndCtx)
+
 -- Examples:
 
 idMap : ∀{Γ T} → Exp Γ T → Exp Γ T
 idMap (Lambda e) = Lambda (idMap e)
-idMap (App e₁ e₂) = let a = App (idMap e₁) (idMap e₂) in {! a  !}
+idMap (App e₁ e₂) = {! e₁  !}
 idMap (Weaken e) = Weaken (idMap e)
 idMap EndCtx = EndCtx
 

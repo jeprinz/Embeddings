@@ -1,5 +1,5 @@
 {-# OPTIONS --cumulativity #-}
-{-# OPTIONS --without-K #-}
+-- {-# OPTIONS --without-K #-}
 
 open import Data.Product
 open import Relation.Binary.PropositionalEquality
@@ -180,6 +180,70 @@ PTypeToType : {Γ : Ctx} → {PΓ : PCtx Γ Γ} → {T : Type Γ}
   → PType PΓ T T → Type Γ
 PTypeToType PT = λ γ → {! (Pγ : )  !}
 
+{-
+
+Each term of Exp is one of the four following things:
+1) 𝟙 (Error)
+2) Term and PTerm
+3) Term - representing just any term
+4) 𝟙 (parametricity)
+5) Term - representing specifically parametricity at a specific type
+
+4) will input a type from 2), and then output 5)
+5) inputs a 2) and outputs a 3)
+
+-}
+
+-- data CtxModel1 : Set j where
+--   error : CtxModel1
+--   notError : (Γ : Ctx) → Type Γ → CtxModel1 -- app constructor works on Exps with this
+
+data CtxModel : Set j where
+  error : CtxModel
+  termPterm : (Γ : Ctx) → PCtx Γ Γ → CtxModel
+  term : Ctx → CtxModel
+  parametricity : CtxModel
+  paraAtType : (Γ : Ctx) → (PCtx Γ Γ) → CtxModel -- really not sure about this one, need to solve PTypeToType in general context!
+
+data Model : CtxModel → Set j where
+  error : Model error
+  termPterm : ∀{Γ PΓ} → (T : Type Γ) → (t : Term Γ T)
+    → (PT : PType PΓ T T) → (Pt : PTerm PΓ PT t t) → Model (termPterm Γ PΓ)
+  term : ∀{Γ} → (T : Type Γ) → (t : Term Γ T) → Model (term Γ)
+  parametricity : Model parametricity
+  paraAtType : ∀{Γ PΓ} → (T : Type Γ) → (t : Term Γ T)
+    → (PT : PType PΓ T T) → (Pt : PTerm PΓ PT t t) → Model (paraAtType Γ PΓ)
+
+{-
+
+Problem : app can't work without having the correct stuff to be parametrized by.
+Solution which doesn't work great without an inference feature:
+
+data AppCases : {cm₁ cm₂ : CtxModel} → {m₁ : Model cm₁} → {m₂ : Model cm₂}
+  → (cm : CtxModel) → Model cm → Set j
+  -- each valid case of the app constructor
+
+-}
+
+data A : Set where
+  a : A
+data B : Set where
+  b : B
+data C : Set where
+  c : C
+
+data Accept : Set → Set₁ where
+    acceptA : Accept A
+    acceptB : Accept B
+
+acceptSome : {X : Set} → {accept : Accept X} → X → ⊤
+acceptSome {_} {acceptA} a = tt
+acceptSome {_} {acceptB} b = tt
+
+test1 : ⊤
+test1 = acceptSome a
+
+
 data Context : (aΓ : Ctx) → PCtx aΓ aΓ → Set j where
   ∅ : Context nil Pnil
   -- _,_ : ∀{aΓ} → (ctx : Context aΓ) → (T : aΓ → Set i) → Context (Σ {i} {i} aΓ T)
@@ -285,4 +349,4 @@ exT2 = cumu₀ (EΠ₀ (EVar same) (EVar (next same)))
 exTerm2 : Exp Γ (extract exT2) (Pextract exT2) _ _
 exTerm2 = ELambda (EVar same)
 
-a = {! Pextract exTerm2  !}
+-- a = {! Pextract exTerm2  !}

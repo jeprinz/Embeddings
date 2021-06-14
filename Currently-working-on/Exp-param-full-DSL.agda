@@ -1,5 +1,5 @@
 {-# OPTIONS --cumulativity #-}
-{-# OPTIONS --without-K #-}
+-- {-# OPTIONS --without-K #-}
 
 open import Data.Product
 open import Relation.Binary.PropositionalEquality
@@ -179,6 +179,45 @@ PTypeToType∅ {T} PT = λ tt → (x y : T tt) → PT tt x y
 PTypeToType : {Γ : Ctx} → {PΓ : PCtx Γ Γ} → {T : Type Γ}
   → PType PΓ T T → Type Γ
 PTypeToType PT = λ γ → {! (Pγ : )  !}
+
+
+
+-- Represents the data carried by an element of Exp
+data Model : Set j where
+  -- Have a term and Parametricity term
+  termPterm :
+    ∀{aΓ PΓ} → (T : Type aΓ)
+    → (PT : PType PΓ T T) → (a : Term aΓ T) → (PTerm PΓ PT a a)
+    → Model
+  -- just have a term
+  term : ∀{aΓ} → (T : Type aΓ) → (a : Term aΓ T) → Model
+  -- have a term, and expect input to have parametricity term
+  -- for return result of parametricity constructor
+  param : ∀{aΓ} → (T : Type aΓ) → (a : Term aΓ T) → Model
+  error : Model
+
+-- need to figure out how to deal with Context, either switch to version where no Context, or
+-- make CtxModel : Set j, and then Model : CtxModel → Set j
+
+{-
+
+The end result that I want is
+parametricity (Π₀ U .....) t
+
+where t is just a term of the given type, and then result of expression is
+Exp Γ (term (FREE THEOREM)) ...
+
+m₁, m₂ : Model
+app : Exp m₁ → Exp m₂ → Exp appCompute m₁ m₂
+
+appCompute can't really be written the way I want though...
+
+Instead, one Exp for each Model?
+So, parametricity is in param model Exp, and the app constrcuctor in the param model Exp
+takes a type from termPterm model Exp, and argument from termPterm model Exp
+
+-}
+
 
 data Context : (aΓ : Ctx) → PCtx aΓ aΓ → Set j where
   ∅ : Context nil Pnil
