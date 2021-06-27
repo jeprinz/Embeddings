@@ -34,10 +34,10 @@ mutual
     var : ∀{Γ T} → (icx : InCtx Γ T) → Ne Γ T
     app : ∀{Γ A B} → Ne Γ (A ⇒ B) → Nf Γ A → Ne Γ B
 
-  -- TODO: how do I enforce expanded normal form?
   data Nf : Ctx → Type → Set where
     lambda : ∀{Γ A B} → Nf (Γ , A) B → Nf Γ (A ⇒ B)
-    ne : ∀{Γ T} → Ne Γ T → Nf Γ T
+    -- ne : ∀{Γ T} → Ne Γ T → Nf Γ T
+    ne : ∀{Γ} → Ne Γ base → Nf Γ base -- the fact that its only base enforces expanded η form. The above version would also typecheck just fine though.
     ⋆ : ∀{Γ} → Nf Γ base
 
 Ren : Ctx → Ctx → Set
@@ -74,17 +74,18 @@ mutual
 
   -- I may have overcomplicated this definition?
   reify : ∀{Γ T} → GExp Γ T → Nf Γ T
-  reify {_} {A ⇒ B} g
-    = lambda (reify {_} {B} (λ ren → g (forget1ren ren) λ ren₂ → nApp {_} {A} (var (ren₂ (ren same)))))
+  reify {Γ} {A ⇒ B} g
+    = lambda (reify {Γ , A} {B} (λ ren → g (forget1ren ren)
+          (λ ren₂ → nApp {_} {A} (var (ren₂ (ren same))))))
     -- = lambda x . (reify (g x))
   reify {_} {base} g = g idRen
 
 idSub : ∀{Γ} → Sub Γ Γ
 idSub x ren = nApp (var (ren x))
 
-liftSub : ∀{Γ₁ Γ₂ T} → Sub Γ₁ Γ₂ → Sub (Γ₁ , T) (Γ₂ , T)
-liftSub sub same ren = nApp (var (ren same))
-liftSub sub (next x) ren = sub x (forget1ren ren)
+-- liftSub : ∀{Γ₁ Γ₂ T} → Sub Γ₁ Γ₂ → Sub (Γ₁ , T) (Γ₂ , T)
+-- liftSub sub same ren = nApp (var (ren same))
+-- liftSub sub (next x) ren = sub x (forget1ren ren)
 
 _∘_ : ∀{A B C} → Ren A B → Ren B C → Ren A C
 s₁ ∘ s₂ = λ x → s₂ (s₁ x)
