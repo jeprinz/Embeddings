@@ -1,5 +1,7 @@
 #lang racket
 
+;; reification for STLC
+
 (define (lam x e) (list 'lam x e))
 (define (var x) (list 'var x))
 (define (app e1 e2) (list 'app e1 e2))

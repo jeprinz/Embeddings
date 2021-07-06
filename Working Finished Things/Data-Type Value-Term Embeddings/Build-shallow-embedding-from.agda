@@ -4,6 +4,13 @@ open import Data.Bool
 open import Data.Empty
 open import Data.Product
 
+{-
+
+The embedding from Core.agda, but built into a shallow embedding and stored
+shallow embedding. Doesn't seem to gain particularly much from doing this.
+
+-}
+
 data SemTzero : Set where
 Semzero : SemTzero → Set
 Semzero ()
@@ -147,62 +154,3 @@ exampleType = EΠ EU (EΠ (Ecumu (Evar same)) (Ecumu (Evar (next same))))
 
 exampleTerm : Exp ∅ (extractTerm exampleType) _
 exampleTerm = Elambda (Elambda (Evar same))
-
-{-
-
-reify : ∀{n SΓ} → (Γ : Context SΓ) → (T : Type n SΓ)
-  -- → (t : Term SΓ T) → Exp Γ T t
-  → (t : Term SΓ T) → (γ : SΓ) → Exp Γ T t
-reify {0} Γ T t γ with T γ
-... | res = {! res  !}
-reify {suc n} Γ T t γ with T γ
-... | U = {! t γ  !}
-... | Π A B = {! Elambda  !}
-... | cumu x = {!   !}
--- reify {zero} ∅ T t with T tt
--- ... | ()
--- reify {zero} (Γ , T₁) T t = {!   !}
--- reify {suc n} ∅ T t = {! T  !}
--- reify {suc n} (Γ , T₁) T t = {!   !}
-
--- NOTE: Can't pattern match on (Type n Γ), but only on SemT n !!!!!!!!!!!!
--- But, I can't change SemT to exist in a context (and thus not need to be a function which inputs context)
--- because then I would actually have to define substitution! and things go crazy quickly there.
--- What does Racket do here!!?!??
-
--- reify : ∀{n SΓ} → (Γ : Context SΓ)
---   → ((γ : SΓ)
---       → Σ (SemT n) (λ T →
---         Σ (Sem n T) (λ t →
---           )))
-
--- seems kind of useless...
-nApp' : ∀{n} → (T : SemT n) → (t : Sem n T)
-  → Exp ∅ (λ _ → T) (λ _ → t) → Sem n T
-nApp' T t e = t
-
-reifyT' : ∀{n} → (T : SemT n) → Exp ∅ (λ _ → U) (λ _ → T)
-reifyT' {suc n} U = EU
-reifyT' {suc n} (Π A B) = EΠ (reifyT' A) {! reifyT' B  !}
-reifyT' {suc n} (cumu T) = Ecumu (reifyT' T)
-
-reify' : ∀{n} → (T : SemT n)
-  → (t : Sem n T) → Exp ∅ (λ _ → T) (λ _ → t)
-reify' {suc n} U t = reifyT' t
-reify' {suc n} (Π A B) t
-  = Elambda (reify _ (λ γ → B (proj₂ γ)) (λ γ → t (proj₂ γ)) (tt , {! Svar  !} ) ) -- refer to Racket definition. I don't think it will be possible, but think about what would need to change to make it work! Shouldn't be able to put result of nApp into reify the way Racket does, so what would need to change to make that work?!??
-  -- NO! B and t are supposed to (from racket) be applied to napp, which is effectively just Svar.
-reify' {suc n} (cumu x) t = EcumuValue (reify' x t)
-
-{-
-
-The reify in racket can work on stuff from any context. But it must have (varr 'x)
-plugged in for each free variable.
-
-IDEA: why can't I have SemT and Sem parametrized by Ctx and with a variable case?
-The B in Π can still be a function, so app case is still easy. Need to check if
-it will still be positive definite, but other than that maybe it is correct...
-
--}
-
--}

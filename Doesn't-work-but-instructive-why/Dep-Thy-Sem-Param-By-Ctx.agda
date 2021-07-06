@@ -47,7 +47,6 @@ Sem (suc n) Γ T = sucn.Semsucn (SemT n) _ Γ T
 U' = U
 ne' = ne
 
-{-# NO_POSITIVITY_CHECK #-}
 data Ctx where
 
 data Nf where
@@ -56,7 +55,7 @@ data Ne where
   U : ∀{n Γ} → Ne Γ (U' {n})
   test : ∀{Γ} → Ne {2} Γ (neIDKMAYBE (Ne Γ (U' {2})) )
   test2 : ∀{Γ A B} → Ne {2} Γ (Π A B)
-  test3 : ∀{}
+  -- test3 : ∀{}
 
 --
 -- _⇒_ : ∀{n} → SemT n → SemT n → SemT n

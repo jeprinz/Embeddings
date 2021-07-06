@@ -2,17 +2,8 @@
 
 {-
 
-Could the following two problems be related to each other?
-Problem 1) Ctx (and other stuff) is not posistive!
-Problem 2) In lambda constructor of Nf₁, can't deal with B properly!
-
-Possible solution to both at once: Maybe we need Sem version of Ctx?
-Like things in the context should be input as functions!??!?
-How does it work in Racket / Paper proof?
-Think evalImpl in Racket, how it deals with context
-
-Even if this solution doesn't fix posistivity, can still construbute to an
-inconsistent implementation with this approach, which would still be very interesting.
+This is the sort of embedding from Data-Type Value-Term, but trying to make it
+deep. Problem comes from positivity of types.
 
 -}
 

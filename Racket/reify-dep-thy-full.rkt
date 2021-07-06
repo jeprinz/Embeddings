@@ -27,7 +27,7 @@
 (define (evalImpl ctx e)
   (match e
     [(lam name e)
-     (lambda (x) (println "input in lambda is:") (println x) (evalImpl (hash-set ctx name x) e))]
+     (lambda (x) (evalImpl (hash-set ctx name x) e))]
     [(app e1 e2)
      ((evalImpl ctx e1) (evalImpl ctx e2))]
     [(varr name)
@@ -35,8 +35,6 @@
     [(Pi x A B)
      (SPi (evalImpl ctx A)
           (lambda (a)
-            (println "input in B of SPi is:")
-            (println a)
             (evalImpl (hash-set ctx x a) B)))]
     [(type)
      (Stype)]
@@ -47,17 +45,10 @@
 
 (define (nApp T e)
   (match T
-    [(Stype)
-     (match e
-       [(Stype) (type)] ;; I think only the any case ever actually happens because e is an Exp, not a Sem.
-       [(SPi A B)
-        (let [(x (gensym))]
-          (Pi x (reify (Stype) A)
-              (reify (Stype) (B (nApp A (varr x))))))]
-       [any e])]
+    [(Stype) e]
     [(SPi A B)
      (lambda (x) (nApp (B x) (app e (reify A x))))]
-    [any (println "here1") (println T) (println e) e]))
+    [any e]))
 
 ;; both T and e come from Semantic domain!
 
@@ -75,27 +66,7 @@
      (let [(x (gensym))]
        (let [(napp (nApp A (varr x)))]
          (lam x (reify (B napp) (e napp)))))]
-    [any (println "here2") (println T) (println e) e]))
-
-#|
-;; reify with ctx -- probably not correct because STLC version doesnt have ctx
-;; ctx is hashmap from names to napp'ed semantic values
-;; so essentially it is like sub
-(define (reify ctx T e)
-  (match T
-    [(Stype)
-     (match e
-       [(Stype) (type)]
-       [(SPi A B)
-        (let [(x (gensym))]
-          (Pi x (reify ctx (Stype) A)
-              (reify (hash-set ctx x (nApp ctx A (varr 'x))) (Stype) B)))])]
-    [(SPi A B)
-     (let [(x (gensym))]
-       (let [(napp (nApp A (varr x)))]
-         (lam x (reify ctx (B napp) (e napp)))))]
     [any e]))
-|#
 
 ;; TODO: figure out non-empty contexts.
 
@@ -127,29 +98,8 @@
               (app (varr 'P) (varr 'T))))))
 (define term4
   (lam 'P (lam 'T (lam 'x (varr 'x)))))
-;; QUESTION: why are here1 and here2 Syntactic when example 4 is run?
-;; Should syntactic stuff really be in semantic domain?
 
-;; Reify can deal with nonempty contexts as-is. For example,
-;; suppose I want to reify( x : type -> type |- x) = x
-;; then, do (reify (Sto (Stype) (Stype)) (nApp (Sto (Stype) (Stype)) (varr 'x)))
-
-;; GOAL: make it so can do substution with Sem!!!!
-;; For example, can already do application with Sem merely by appying it.
-;; So, ((eval (lam 'x (varr 'x))) "yeet") should work
-;; Although even then, application only works if things are fully applied like
-;; expanded eta form.
-
-
-
-
-
-
-
-;; As a simple example, consider
 (define type5
   (Pi '_ (type) (type)))
 (define term5
   (lam 'x (varr 'x)))
-
-;; QUESTION: when do the lambdas in right of SPi input an Exp vs a Sem?

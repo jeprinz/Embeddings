@@ -1,11 +1,6 @@
 #lang racket
 
-;; going to work out what the deal is with renamings, how they fit into
-;; the algorithm.
-
-;; There will likely be multiple possible options for implementation. I will try to use
-;; the one which which is the "most general" or "most parametric", in other words the one
-;; which doesns't tie down Sem to any particular implementation of Exp.
+;; Not finished, working on reification with debruin indices instead of named variables.
 
 ;; Syntactic domain (Exp)
 (struct lam (e) #:transparent)
