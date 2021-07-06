@@ -73,3 +73,12 @@ mutual
   -- SemT' n Γ = SemT Ctx (λ Γ → Ne Γ (U' {suc n})) (λ Γ e → Nf Γ (neutral' e)) n Γ
   -- U' = semantics.sucn.SemTsucn.U
   -- neutral' = sucn.neutral
+
+{-
+
+I seem to have solved the termination issues that come with contexts via GSemT
+and GSem combined. TBH, im not 100% sure why it works, need to think about it
+more. Does it remove the need for me to have Ctx, Ren, Ne, ... as parameters?
+Can I just directly have them recursively defined now? (TODO)
+
+-}

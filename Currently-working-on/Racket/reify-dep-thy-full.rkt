@@ -49,7 +49,7 @@
   (match T
     [(Stype)
      (match e
-       [(Stype) (type)]
+       [(Stype) (type)] ;; I think only the any case ever actually happens because e is an Exp, not a Sem.
        [(SPi A B)
         (let [(x (gensym))]
           (Pi x (reify (Stype) A)

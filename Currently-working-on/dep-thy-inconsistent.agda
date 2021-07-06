@@ -5,7 +5,7 @@ data Ctx : Set
 
 data SemT : Ctx → Set -- where
 GSemT : Ctx → Set
-data Var : (Γ : Ctx) → GSemT Γ → Set -- should this be GSemT????
+data Var : (Γ : Ctx) → SemT Γ → Set -- should this be GSemT????
 data Ne : (Γ : Ctx) → SemT Γ → Set -- where
 data Nf : (Γ : Ctx) → SemT Γ → Set -- where
 
@@ -33,55 +33,62 @@ GSem {Γ} A = ∀{Γ'} → (ren : Ren Γ Γ') → Sem {Γ'} (A ren)
 
 data Ctx where
   ∅ : Ctx
-  _,_ : (Γ : Ctx) → GSemT Γ → Ctx
+  _,_ : (Γ : Ctx) → SemT Γ → Ctx
 
--- data Weakening where
---   same : ∀{Γ} → Weakening Γ Γ
---   append : ∀{Γ₁ Γ₂} → Weakening Γ₁ Γ₂ → {T : GSemT Γ₂} → Weakening Γ₁ (Γ₂ , T)
---   lift : ∀{Γ₁ Γ₂} → (wea : Weakening Γ₁ Γ₂)
---     → {T : GSemT Γ₁} → Weakening (Γ₁ , T) (Γ₂ , λ wea₂ → T (wea ∘ wea₂))
-
-_∘_ : ∀{Γ₁ Γ₂ Γ₃} → Ren Γ₁ Γ₂ → Ren Γ₂ Γ₃ → Ren Γ₁ Γ₃
-applyRen : ∀{Γ₁ Γ₂} → {T : GSemT Γ₁} → (ren : Ren Γ₁ Γ₂) → Var Γ₁ T → Var Γ₂ (λ r → T (ren ∘ r))
+-- _∘_ : ∀{Γ₁ Γ₂ Γ₃} → Ren Γ₁ Γ₂ → Ren Γ₂ Γ₃ → Ren Γ₁ Γ₃
+-- data Ren where
+--   ∅ : Ren ∅ ∅
+--   append : ∀{Γ₁ Γ₂} → Ren Γ₁ Γ₂ → {T : GSemT Γ₂} → Ren Γ₁ (Γ₂ , T)
+--   lift : ∀{Γ₁ Γ₂} → (wea : Ren Γ₁ Γ₂)
+--     → {T : GSemT Γ₁} → Ren (Γ₁ , T) (Γ₂ , λ wea₂ → T (wea ∘ wea₂))
+renSemT : ∀{Γ₁ Γ₂} → (ren : Ren Γ₁ Γ₂) → SemT Γ₁ → SemT Γ₂
+applyRen : ∀{Γ₁ Γ₂} → {T : SemT Γ₁} → (ren : Ren Γ₁ Γ₂) → Var Γ₁ T → Var Γ₂ (renSemT ren T)
+idRen : ∀{Γ} → Ren Γ Γ
+append1ren : ∀{Γ₁ Γ₂ T} → Ren Γ₁ Γ₂ → Ren Γ₁ (Γ₂ , T)
 data Ren where
   ∅ : ∀{Γ} → Ren ∅ Γ
   cons : ∀{Γ₁ Γ₂} → (ren : Ren Γ₁ Γ₂)
-    → {T : GSemT Γ₁}
+    → {T : SemT Γ₁}
     -- → Var Γ₂ (λ r → T (ren ∘ r))
-    → Var Γ₂ (λ r → T {!   !} )
+    → Var Γ₂ (renSemT ren T)
     → Ren (Γ₁ , T) Γ₂
 
-∅ ∘ ren₂ = ∅
-(cons ren x) ∘ ren₂ = cons (ren ∘ ren₂) {! applyRen ren₂ x  !}
+-- forget1ren : ∀{Γ} →
+weaken1Ren : ∀{Γ T} → Ren Γ (Γ , T)
+weaken1Ren {∅} {T} = ∅
+weaken1Ren {Γ , A} {T} = cons {!   !} {!   !}
 
--- Ren2 : Ctx → Ctx → Set
--- Ren2 ∅ Γ₂ = ⊤
--- Ren2 (Γ₁ , T) Γ₂ = Σ (Ren2 Γ₁ Γ₂) (λ ren → Var Γ₂ {! (λ r → T (ren ∘ r))  !})
+-- idRen2 : ∀{Γ} → Ren Γ Γ
+-- idRen2 same = same
+-- idRen2 (next x) = next (idRen2 x)
 
--- forget1ren : ∀{Γ} → {T : GSemT Γ} → Ren Γ (Γ , T)
---
+idRen {∅} = ∅
+idRen {Γ , T} = cons {! next   !} {!   !} -- even if can fill in first hole, second hole wont work...
+
 data Var where
---   same : ∀{Γ} → {T : GSemT Γ} → Var (Γ , T) λ r → T (forget1ren ∘ r)
---   next : ∀{Γ} → {T A : GSemT Γ}
---     → Var Γ A → Var (Γ , T) (λ r → A (forget1ren ∘ r))
---
-applyRen ∅ ()
--- applyRen (cons ren y) same = {! y  !}
--- applyRen (cons ren y) (next x) = {!   !} -- applyRen ren x
---
---
--- forget1ren {∅} = ∅
--- forget1ren {Γ , T} = cons {! forget1ren   !} (next same)
+  -- same : ∀{Γ} → {T : SemT Γ} → Var (Γ , T) (renSemT (append1ren idRen) T)
+  -- same : ∀{Γ} → {T : GSemT Γ} → Var (Γ , T idRen) (T (append1ren idRen))
+  -- next : ∀{Γ} → {T A : GSemT Γ}
+    -- → Var Γ A → Var (Γ , T) (λ r → A (forget1ren ∘ r))
+  next : ∀{Γ} → {T A : SemT Γ}
+    → Var Γ A → Var (Γ , T) (renSemT (append1ren idRen) A)
 
-  -- same : ∀{Γ} → {T : GSemT Γ} → Var (Γ , T) {!   !}
+append1ren ∅ = ∅
+append1ren (cons ren x) = cons (append1ren ren) {! next x  !}
+
+applyRen = {!   !}
+renSemT = {!   !}
+
+
 data Ne where
 data Nf where
   U : ∀{Γ} → Nf Γ U
-
 {-
 
 BIG TODO: are Var, Nf, Ne, parametrized by GSemT, or SemT?
 -- Var must be parametrized by GSemT, because how else can next constructor of Var work?
     -- unless going to define weakening in there...
+-- Also, Should Ctx hold GSemT or SemT???????
+-- If Nf/Ne are parametrized by SemT, then so should Ctx? Would solve some problems?
 
 -}
