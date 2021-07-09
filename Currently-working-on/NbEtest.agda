@@ -6,8 +6,8 @@ open import Relation.Binary.PropositionalEquality
 
 {-
 
-Implementation of standard Normalization by Evaluation for Simply Typed
-Lambda Calculus is Agda. Granted, maybe the variable names aren't standard.
+Alternate (from my perspective) definition of Sem
+I think this might be the standard one?
 
 -}
 
@@ -43,65 +43,69 @@ mutual
 Ren : Ctx → Ctx → Set
 Ren Γ₁ Γ₂ = ∀{T} → InCtx Γ₁ T → InCtx Γ₂ T
 
+append1ren : ∀{Γ Γ' T} → Ren Γ Γ' → Ren (Γ , T) (Γ' , T)
+append1ren ren same = same
+append1ren ren (next x) = next (ren x)
+
+mutual
+  renNe : ∀{Γ Γ' T} → Ren Γ Γ' → Ne Γ T → Ne Γ' T
+  renNf : ∀{Γ Γ' T} → Ren Γ Γ' → Nf Γ T → Nf Γ' T
+  renNe ren (var icx) = var (ren icx)
+  renNe ren (app e₁ e₂) = app (renNe ren e₁) (renNf ren e₂)
+  renNf ren (lambda e) = lambda (renNf (append1ren ren) e)
+  renNf ren (ne e) = ne (renNe ren e)
+  renNf ren ⋆ = ⋆
+
 forget1ren : ∀{Γ₁ Γ₂ T} → Ren (Γ₁ , T) Γ₂ → Ren Γ₁ Γ₂
 forget1ren ren x = ren (next x)
 
 idRen : ∀{Γ} → Ren Γ Γ
 idRen x = x
 
-mutual
-  -- formerly PUExp -- For example, maps (A ⇒ B ⇒ C) ↦ (Exp A → Exp B → Exp C)
-  Sem : Ctx → Type → Set
-  Sem Γ (A ⇒ B) = GSem Γ A → Sem Γ B
-  Sem Γ base = Nf Γ base
-
-  GSem : Ctx → Type → Set
-  GSem Γ T = ∀{Γ'} → Ren Γ Γ' → Sem Γ' T
-
-Sub : Ctx → Ctx → Set
-Sub Γ₁ Γ₂ = ∀{T} → InCtx Γ₁ T → GSem Γ₂ T
+Sem : Ctx → Type → Set
+Sem Γ (A ⇒ B) = ∀{Γ'} → Ren Γ Γ' → Sem Γ' A → Sem Γ' B -- alternate form!
+Sem Γ base = Nf Γ base
 
 mutual
-  -- brings things into expanded eta form.
-  -- perhaps wouldn't be necessary if Nf was designed as inherently expanded eta form?
-  -- x : A ⇒ B  ↦  λ a . app x a
   nApp : ∀{Γ T} → Ne Γ T → Sem Γ T
-  nApp {_} {A ⇒ B} e = λ g → nApp {_} {B} (app e (reify g))
+  nApp {_} {A ⇒ B} e = λ ren g → nApp (app (renNe ren e) (reify g))
   nApp {_} {base} e = ne e
 
-  -- I may have overcomplicated this definition?
-  reify : ∀{Γ T} → GSem Γ T → Nf Γ T
-  reify {Γ} {A ⇒ B} g
-    = lambda (reify {Γ , A} {B} (λ ren → g (forget1ren ren)
-          (λ ren₂ → nApp {_} {A} (var (ren₂ (ren same))))))
-    -- = lambda x . (reify (g x))
-  reify {_} {base} g = g idRen
+  reify : ∀{Γ T} → Sem Γ T → Nf Γ T
+  reify {Γ} {A ⇒ B} g = lambda (reify (g (forget1ren idRen) (nApp (var same))))
+  reify {Γ} {base} g = g
+
+Sub : Ctx → Ctx → Set
+Sub Γ₁ Γ₂ = ∀{T} → InCtx Γ₁ T → Sem Γ₂ T
 
 idSub : ∀{Γ} → Sub Γ Γ
-idSub x ren = nApp (var (ren x))
-
--- liftSub : ∀{Γ₁ Γ₂ T} → Sub Γ₁ Γ₂ → Sub (Γ₁ , T) (Γ₂ , T)
--- liftSub sub same ren = nApp (var (ren same))
--- liftSub sub (next x) ren = sub x (forget1ren ren)
+idSub x = nApp (var x)
 
 _∘_ : ∀{A B C} → Ren A B → Ren B C → Ren A C
 s₁ ∘ s₂ = λ x → s₂ (s₁ x)
 
-transSR : ∀{Γ₁ Γ₂ Γ₃} → Sub Γ₁ Γ₂ → Ren Γ₂ Γ₃ → Sub Γ₁ Γ₃
-transSR sub ren x ren₂ = sub x (ren ∘ ren₂)
+renSem : ∀{Γ₁ Γ₂ T} → Ren Γ₁ Γ₂ → Sem Γ₁ T → Sem Γ₂ T
+renSem {_} {_} {A ⇒ B} ren e = λ ren₁ a → e (ren ∘ ren₁) a
+renSem {_} {_} {base} ren e = renNf ren e
 
-append1sub : ∀{Γ₁ A Γ₂} → Sub Γ₁ Γ₂ → GSem Γ₂ A → Sub (Γ₁ , A) Γ₂
-append1sub sub e same ren = e ren
-append1sub sub e (next x) ren = sub x ren
+transSR : ∀{Γ₁ Γ₂ Γ₃} → Sub Γ₁ Γ₂ → Ren Γ₂ Γ₃ → Sub Γ₁ Γ₃
+transSR sub ren x = renSem ren (sub x)
+
+append1sub : ∀{Γ₁ A Γ₂} → Sub Γ₁ Γ₂ → Sem Γ₂ A → Sub (Γ₁ , A) Γ₂
+append1sub sub e same = e
+append1sub sub e (next x) = sub x
 
 eval : ∀{Γ₁ Γ₂ T} → Exp Γ₁ T → Sub Γ₁ Γ₂ → Sem Γ₂ T
-eval (var x) sub = sub x idRen
-eval (lambda e) sub = λ a → eval e (append1sub sub a)
-eval (app e₁ e₂) sub = (eval e₁ sub) (λ ren₁ → eval e₂ (transSR sub ren₁))
+eval (var x) sub = sub x
+-- eval (lambda e) sub = λ a → eval e (append1sub sub a)
+eval (lambda e) sub = λ ren a → eval e (append1sub (transSR sub ren) a)
+-- eval (app e₁ e₂) sub = (eval e₁ sub) (λ ren₁ → eval e₂ (transSR sub ren₁))
+eval (app e₁ e₂) sub = (eval e₁ sub) idRen (eval e₂ sub)
 eval ⋆ sub = ⋆
 
 normalize : ∀{Γ T} → Exp Γ T → Nf Γ T
-normalize e = reify (λ ren → eval e (transSR idSub ren))
+-- normalize e = reify (λ ren → eval e (transSR idSub ren))
+normalize e = reify (eval e idSub)
 
 -- some examples to test it out:
 

@@ -1,3 +1,4 @@
+{-# OPTIONS --cumulativity #-}
 open import Data.Unit
 open import Data.Product
 open import Data.Bool
@@ -49,33 +50,65 @@ forget1ren ren x = ren (next x)
 idRen : ∀{Γ} → Ren Γ Γ
 idRen x = x
 
+append1ren : ∀{Γ Γ' T} → Ren Γ Γ' → Ren (Γ , T) (Γ' , T)
+append1ren ren same = same
+append1ren ren (next x) = next (ren x)
 mutual
-  -- formerly PUExp -- For example, maps (A ⇒ B ⇒ C) ↦ (Exp A → Exp B → Exp C)
-  Sem : Ctx → Type → Set
-  Sem Γ (A ⇒ B) = GSem Γ A → Sem Γ B
-  Sem Γ base = Nf Γ base
+  renNe : ∀{Γ Γ' T} → Ren Γ Γ' → Ne Γ T → Ne Γ' T
+  renNf : ∀{Γ Γ' T} → Ren Γ Γ' → Nf Γ T → Nf Γ' T
+  renNe ren (var icx) = var (ren icx)
+  renNe ren (app e₁ e₂) = app (renNe ren e₁) (renNf ren e₂)
+  renNf ren (lambda e) = lambda (renNf (append1ren ren) e)
+  renNf ren (ne e) = ne (renNe ren e)
+  renNf ren ⋆ = ⋆
 
-  GSem : Ctx → Type → Set
-  GSem Γ T = ∀{Γ'} → Ren Γ Γ' → Sem Γ' T
+Sem : Set → Type → Set₁
+Sem X (A ⇒ B) = {X' : Set} → (X → X') → Sem X' A → Sem X' B
+Sem X base = X -- X is Nf Γ base
+
+mutual
+  nApp : ∀{Γ T} → Ne Γ T → Sem (Nf Γ base) T
+  nApp {_} {A ⇒ B} e = λ ren g → {! nApp  !}
+  nApp {_} {base} e = ne e
+  -- nApp {_} {A ⇒ B} e = λ ren g → nApp (app (renNe ren e) (reify g))
+  -- nApp {_} {base} e = ne e
+
+  nApp2 : ∀{Γ T X} → Ne Γ T → (Nf Γ base → X) → Sem X T
+  nApp2 {_} {A ⇒ B} e f
+    = λ ren g → nApp2 (nApp2 (app {! e  !} {!  !} ) {!   !} ) {!   !}
+  nApp2 {_} {base} e f = f (ne e)
+
+  reify2 : ∀{Γ T X} → Sem X T → (X → Nf Γ base) → Nf Γ T
+  reify2 {Γ} {A ⇒ B} g f = lambda (reify2 {!   !} {!   !} )
+  reify2 {Γ} {base} g f = f g
+
+  reify : ∀{Γ T} → Sem (Nf Γ base) T → Nf Γ T
+  reify {Γ} {A ⇒ B} g = lambda (reify (g (renNf (forget1ren idRen)) (nApp (var same))))
+  reify {Γ} {base} g = g
+  -- reify {Γ} {A ⇒ B} g = lambda (reify (g (forget1ren idRen) (nApp (var same))))
+  -- reify {Γ} {base} g = g
+
+-- mutual
+--   Sem : Set → Type → Set₁
+--   Sem X (A ⇒ B) = GSem X A → Sem X B
+--   Sem X base = X -- Nf Γ base
+--
+--   GSem : Set → Type → Set₁
+--   GSem X T = {X' : Set} → (X → X') → Sem X' T
+--
+-- mutual
+--   nApp : ∀{Γ T} → Ne Γ T → Sem (Nf Γ base) T
+--   nApp {_} {A ⇒ B} e = λ g → nApp (app e {! reify g  !} )
+--   nApp {_} {base} e = ne e
+--
+--   reify : ∀{Γ T} → GSem (Nf Γ base) T → Nf Γ T
+--   reify {Γ} {A ⇒ B} g
+--     = lambda (reify λ ren → g {!   !} {!   !} )
+--   reify {Γ} {base} g = {!   !}
+{-
 
 Sub : Ctx → Ctx → Set
 Sub Γ₁ Γ₂ = ∀{T} → InCtx Γ₁ T → GSem Γ₂ T
-
-mutual
-  -- brings things into expanded eta form.
-  -- perhaps wouldn't be necessary if Nf was designed as inherently expanded eta form?
-  -- x : A ⇒ B  ↦  λ a . app x a
-  nApp : ∀{Γ T} → Ne Γ T → Sem Γ T
-  nApp {_} {A ⇒ B} e = λ g → nApp {_} {B} (app e (reify g))
-  nApp {_} {base} e = ne e
-
-  -- I may have overcomplicated this definition?
-  reify : ∀{Γ T} → GSem Γ T → Nf Γ T
-  reify {Γ} {A ⇒ B} g
-    = lambda (reify {Γ , A} {B} (λ ren → g (forget1ren ren)
-          (λ ren₂ → nApp {_} {A} (var (ren₂ (ren same))))))
-    -- = lambda x . (reify (g x))
-  reify {_} {base} g = g idRen
 
 idSub : ∀{Γ} → Sub Γ Γ
 idSub x ren = nApp (var (ren x))
@@ -128,3 +161,4 @@ e4 = lambda (app (lambda (var same)) (var same))
 
 test4 : normalize e4 ≡ lambda (ne (var same))
 test4 = refl
+-}

@@ -80,6 +80,7 @@ applyRen = {!   !}
 renSemT = {!   !}
 
 
+
 data Ne where
 data Nf where
   U : ∀{Γ} → Nf Γ U
