@@ -62,13 +62,21 @@ mutual
   renNf ren (ne e) = ne (renNe ren e)
   renNf ren ⋆ = ⋆
 
+-- Point is that Sem doesn't refer to Context or Nf
 Sem : Set → Type → Set₁
 Sem X (A ⇒ B) = {X' : Set} → (X → X') → Sem X' A → Sem X' B
 Sem X base = X -- X is Nf Γ base
 
 mutual
+  nApp3 : ∀{T X} → X → Sem X T
+  nApp3 {A ⇒ B} x = λ ren g → nApp3 {B} {! reify3 g  !}
+  nApp3 {base} x = x
+
+  reify3 : ∀{T X} → Sem X T → X
+
+  {-
   nApp : ∀{Γ T} → Ne Γ T → Sem (Nf Γ base) T
-  nApp {_} {A ⇒ B} e = λ ren g → {! nApp  !}
+  nApp {_} {A ⇒ B} e = λ ren g → {!   !}
   nApp {_} {base} e = ne e
   -- nApp {_} {A ⇒ B} e = λ ren g → nApp (app (renNe ren e) (reify g))
   -- nApp {_} {base} e = ne e
@@ -87,6 +95,7 @@ mutual
   reify {Γ} {base} g = g
   -- reify {Γ} {A ⇒ B} g = lambda (reify (g (forget1ren idRen) (nApp (var same))))
   -- reify {Γ} {base} g = g
+  -}
 
 -- mutual
 --   Sem : Set → Type → Set₁
