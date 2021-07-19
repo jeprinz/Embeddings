@@ -72,9 +72,10 @@ mutual
   -- I may have overcomplicated this definition?
   reify : ∀{Γ T} → GSem Γ T → Nf Γ T
   reify {Γ} {A ⇒ B} g
-    = lambda (reify {Γ , A} {B} (λ ren → g (forget1ren ren)
-          (λ ren₂ → nApp {_} {A} (var (ren₂ (ren same))))))
-    -- = lambda x . (reify (g x))
+    -- = lambda (reify {Γ , A} {B} (λ ren → g (forget1ren ren)
+          -- (λ ren₂ → nApp {_} {A} (var (ren₂ (ren same))))))
+    = lambda (reify (λ ren → g (forget1ren ren)
+          (λ ren₂ → nApp (var (ren₂ (ren same))))))
   reify {_} {base} g = g idRen
 
 idSub : ∀{Γ} → Sub Γ Γ

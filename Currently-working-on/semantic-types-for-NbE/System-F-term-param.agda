@@ -1,11 +1,10 @@
-module System-F-inconsistent where
-
 open import Data.Unit
 open import Data.Nat
 open import Data.Bool
 open import Data.Empty
 open import Data.Product
 open import Function
+open import Relation.Binary.PropositionalEquality
 
 data TCtx : Set -- where
 data TVar : TCtx → Set -- where
@@ -22,8 +21,8 @@ Ren : ∀{Δ} → Ctx Δ → Ctx Δ → Set
 TRen Δ₁ Δ₂ = TVar Δ₁ → TVar Δ₂
 Ren Γ₁ Γ₂ = ∀{T} → Var Γ₁ T → Var Γ₂ T
 
-TSub : TCtx → TCtx → Set
-TSub Δ₁ Δ₂ = TVar Δ₁ → SemT Δ₂
+-- BRen : (Δ₁ Δ₂ : TCtx) → Ctx Δ₁ → Ctx Δ₂ → Set
+-- BRen Δ₁ Δ₂ Γ₁ Γ₂ =
 
 renTCtx : ∀{Δ₁ Δ₂} → TRen Δ₁ Δ₂ → Ctx Δ₁ → Ctx Δ₂
 
@@ -51,6 +50,9 @@ data TCtx where
 data TVar where
   same : ∀{Δ} → TVar Δ
   next : ∀{Δ} → TVar Δ → TVar (S Δ)
+
+TSub : TCtx → TCtx → Set
+TSub Δ₁ Δ₂ = TVar Δ₁ → SemT Δ₂
 
 idSubT : ∀{Δ} → TSub Δ Δ
 idSubT x = var x
@@ -133,15 +135,54 @@ data Nf where
 
 -- what if Exp was parametrized by a Type instead of a SemT????
 
-data Exp : (Δ : TCtx) → Ctx Δ → SemT Δ → Set where
-  var : ∀{Δ Γ T} → Var {Δ} Γ T → Exp Δ Γ T
-  app : ∀{Δ Γ A B} → Exp Δ Γ (A ⇒ B) → Exp Δ Γ A → Exp Δ Γ B
-  lambda : ∀{Δ Γ A B} → Exp Δ (Γ , A) B → Exp Δ Γ (A ⇒ B)
+subSemT : ∀{Δ₁ Δ₂} → TSub Δ₁ Δ₂ → SemT Δ₁ → SemT Δ₂
+-- subSemT sub (all T) = all (λ tren X → subSemT {!   !} (T {!   !} X))
+-- subSemT sub (var x) = sub x
+-- subSemT sub (A ⇒ B) = subSemT sub A ⇒ subSemT sub B
+subSemT tsub T = evalT (reifyT T) tsub
+
+-- subSem : ∀{Δ₁ Δ₂ T Γ} → (tsub : TSub Δ₁ Δ₂)
+  -- → Sem Δ₁ T Γ → Sem Δ₂
+
+lemma1 : ∀{Δ T A} → subSemT {S Δ} (append1Tsub idSubT A) (renSemT weaken1renT T) ≡ T
+lemma1 {Δ} {all x} = cong all {!   !}
+lemma1 {Δ} {var x} = {!   !}
+lemma1 {Δ} {A ⇒ B} = cong₂ _⇒_ lemma1 lemma1
+
+renidSemT≡ : ∀{Δ} → {T : SemT Δ} → renSemT idRenT T ≡ T
+renidSemT≡ {_} {all T} = refl
+renidSemT≡ {_} {var x} = refl
+renidSemT≡ {_} {A ⇒ B} = cong₂ _⇒_ renidSemT≡ renidSemT≡
+
+renidCtx≡ : ∀{Δ} → {Γ : Ctx Δ} → renTCtx idRenT Γ ≡ Γ
+renidCtx≡ {_} {∅} = refl
+renidCtx≡ {_} {Γ , T} = cong₂ _,_ renidCtx≡ renidSemT≡
+
+data Exp : (Δ : TCtx) → (Γ : Ctx Δ) → (T : SemT Δ)
+  → Sem Δ T Γ → Set where
+  var : ∀{Δ Γ T} → Var {Δ} Γ T → Exp Δ Γ T {!   !}
+  app : ∀{Δ Γ A B b} → {a : ∀{Γ'} → Ren Γ Γ' → Sem Δ A Γ' → Sem Δ B Γ'}
+    → Exp Δ Γ (A ⇒ B) a
+    → Exp Δ Γ A b
+    → Exp Δ Γ B (a idRen b)
+  lambda : ∀{Δ Γ A B t} → Exp Δ (Γ , A) B t → Exp Δ Γ (A ⇒ B) (λ ren a → {! t  !})
   App : ∀{Δ Γ} → {T : ∀{Δ'} → TRen Δ Δ' → SemT Δ' → SemT Δ'}
-    → Exp Δ Γ (all T) → (A : Type Δ) → Exp Δ Γ (T idRenT (evalT A idSubT))
+    → {t : {Δ' : TCtx} (tren : TRen Δ Δ') (a : SemT Δ') → Sem Δ' (T tren a) (renTCtx tren Γ)}
+    → Exp Δ Γ (all T) t
+    → (A : Type Δ)
+    → Exp Δ Γ (T idRenT (evalT A idSubT))
+      (subst (λ Γ → Sem Δ (T idRenT (evalT A idSubT)) Γ) renidCtx≡ (t idRenT (evalT A idSubT)))
   Lambda : ∀{Δ Γ} → {T : ∀{Δ'} → TRen Δ Δ' → SemT Δ' → SemT Δ'}
-    → Exp (S Δ) (renTCtx weaken1renT Γ) (T weaken1renT (var same))
-    → Exp Δ Γ (all T)
+    → {t : Sem (S Δ) (T weaken1renT (var same)) (renTCtx weaken1renT Γ)}
+    → Exp (S Δ) (renTCtx weaken1renT Γ) (T weaken1renT (var same)) t
+    → Exp Δ Γ (all T) (λ tren X → {! subSemT  !})
+
+{-
+
+Fundamentally, the problem is
+weakening 1 and then substituting 1 gets you to where you started
+
+-}
 
 {-
 
@@ -161,41 +202,15 @@ transSR : ∀{Δ} → {Γ₁ Γ₂ Γ₃ : Ctx Δ} → Sub Γ₁ Γ₂ → Ren �
 -- transSR sub ren x = renSem ren (sub x)
 transSR sub ren x = {! sub x  !}
 
-eval : ∀{Δ} → {Γ₁ Γ₂ : Ctx Δ} → {T : SemT Δ}
-  → Exp Δ Γ₁ T → Sub Γ₁ Γ₂ → Sem Δ T Γ₂
-eval (var x) sub = sub x
-eval (app e₁ e₂) sub = (eval e₁ sub) idRen (eval e₂ sub)
-eval (lambda e) sub = λ ren a → eval e (append1sub (transSR sub ren) a)
-eval (App e T) sub = {! (eval e sub) idRenT (evalT T idSubT)  !}
-eval (Lambda e) sub = λ tren a → {! eval e ?  !}
 
-{-
+subCtx : ∀{Δ₁ Δ₂} → TSub Δ₁ Δ₂ → Ctx Δ₁ → Ctx Δ₂
+subCtx tsub ∅ = ∅
+subCtx tsub (Γ , T) = subCtx tsub Γ , subSemT tsub T
 
-NOTE: what have I done / am doing here compared to this paper:
-https://iohk.io/en/research/library/papers/system-f-in-agdafor-fun-and-profit/
-
-They manage to define what they call "algorithmic syntax", which essentially means that
-β reduction sequences don't have to be manually specified but instead are computed
-algorithmically, like a programming language should. They do it via first defining
-non algorithmic syntax, and then doing normalization by evaluation on the types.
-They do not have to idea that I have of parametrizing Exp by SemT.
-
-They also don't get normalziation for terms. Hopefully I will. Still, I think its
-important to keep in mind that their approach exists and works.
-
-My current understanding of how that paper works is that they do NbE for types,
-and Exp is still parametrized by syntactic types. However, that is still enough
-to get a DEFINITION of system F. But, they are unable to then get NbE for TERMS.
-I believe that this is because to get NbE for terms one needs to do what I'm doing
-in this file, and have terms parametrized by SEMANTIC types.
-
-
-
-STILL: QUESTION: what is their semantic domain for types!!!???!?!? does it contain
-part of the trick I've discovered here? I don't think they have an equivalent of
-SemT. Is it unecessary?
-
-Also, that paper deals with a langauge which is actually inconsistent. So normalization
-wouldn't even make sense. But then, is it known how to do it for e.g. System F?
-
--}
+-- subVar : ∀{Δ₁ Δ₂ T} → {Γ : } → TSub Δ₁ Δ₂ → Var Δ₁ T → Var Δ₂ ?
+-- subVar tsub same = same
+-- subVar tsub (next x) = {!   !}
+subVar : ∀{Δ₁ Δ₂ T} → {Γ : Ctx Δ₁} → (tsub : TSub Δ₁ Δ₂)
+  → Var Γ T → Var (subCtx tsub Γ) (subSemT tsub T)
+subVar tsub same = same
+subVar tsub (next x) = next (subVar tsub x)

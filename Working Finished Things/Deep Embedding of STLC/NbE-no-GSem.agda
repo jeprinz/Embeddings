@@ -76,7 +76,7 @@ mutual
   reify {Γ} {base} g = g
 
 Sub : Ctx → Ctx → Set
-Sub Γ₁ Γ₂ = ∀{T} → InCtx Γ₁ T → Sem Γ₂ T
+Sub Γ₁ Γ₂ = ∀{T} → InCtx Γ₁ T → Sem Γ₂ T -- if Sub instead outputted a GSem, could renSem,renNf, and renNe be avoided?
 
 idSub : ∀{Γ} → Sub Γ Γ
 idSub x = nApp (var x)

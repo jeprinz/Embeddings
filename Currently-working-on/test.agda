@@ -1,63 +1,40 @@
-open import Data.Unit
-open import Data.Nat
-open import Data.Bool
-open import Data.Empty
-open import Data.Product renaming (Σ to Σbi) -- bi stands for built-in
-open import Data.List
+{-# OPTIONS --type-in-type #-}
 
-data SemTzero : Set where
-Semzero : SemTzero → Set
-Semzero ()
+open import Data.Product
 
-module sucn (SemTn : Set) (Semn : SemTn → Set) where
-  mutual
-    data SemTsucn : Set where
-        U : SemTsucn
-        Π : (A : SemTsucn) → (Semsucn A → SemTsucn) → SemTsucn
-        Σ : (A : SemTsucn) → (Semsucn A → SemTsucn) → SemTsucn
-        cumu : SemTn → SemTsucn
+L = Σ Set (λ X → X)
 
-    Semsucn : SemTsucn → Set
-    Semsucn U = SemTn
-    Semsucn (Π A B) = (a : Semsucn A) → Semsucn (B a)
-    Semsucn (Σ A B) = Σbi (Semsucn A) (λ a → Semsucn (B a))
-    Semsucn (cumu T) = Semn T
 
-open sucn
+data ⊥ : Set where
+¬_ : Set → Set
+¬ T = T → ⊥
 
-mutual
-  SemT : ℕ → Set
-  SemT zero = SemTzero
-  SemT (suc n) = sucn.SemTsucn (SemT n) (Sem n)
+-- prov : L → Set
+-- prov (T , t) = {!   !}
 
-  Sem : (n : ℕ) → SemT n → Set
-  Sem zero T = Semzero T
-  Sem (suc n) T = sucn.Semsucn _ _ T
+data Prov : (X : Set) → X → Set where
+  prov : ∀{X : Set} → X → Prov Set X
 
-U' : (n : ℕ) → SemT (suc n)
-U' zero = U
-U' (suc n) = U
+data Prov2 : L → L → Set where
+  prov2 : {X : Set} → {x : X}
+    → Prov2 (Set , X) (X , x)
 
--- what level context?
-data Exp : ∀{n} → SemT n → Set where
-  -- lambda : {Γ A B} → Exp (Π (Σ Γ A) B) → {!   !}
-  lambda : ∀{n} → {Γ : SemT (suc n)}
-    → {A : Sem (suc n) Γ → SemT (suc n)}
-    -- → {A : Sem (suc n) (Π Γ (λ _ → U))}
-    → {B : Sem (suc n) (Σ Γ A) → SemT (suc n)}
-    → Exp (Π (Σ Γ A) B) → Exp (Π Γ (λ γ → Π (A γ) (λ a → B (γ , a))))
-  -- cumu : ∀{n} → {Γ : SemT (suc n)} → {T : Sem ()}
-  -- lam2 : ∀{n} → {A : SemT (suc n)} → {B : Sem (suc n) A → SemT (suc n)} →
+data App : L → L → L → Set where
+  app : {A B : Set} → {f : A → B} → {e : A}
+    → App ((A → B) , f) (A , e) (B , f e)
 
-eval : ∀{n} → {T : SemT n} → Exp T → Sem n T
-eval (lambda e) = λ f → λ a → eval e (f , a)
+SelfProv : L → Set
+SelfProv P = Σ L (λ proof → Σ L (λ A → App P P A × Prov2 A proof))
 
--- reify : ∀{n} → (T : SemT n) → Sem n T → Exp T
--- reify {suc n} U e = {!   !}
--- reify {suc n} (Π A B) e = {! B  !}
--- reify {suc n} (Σ T₁ x) e = {!   !}
--- reify {suc n} (cumu x) e = {!   !}
+-- SelfProv : (X : Set) → X → Set
+-- SelfProv T t = P _ P
 
-reify : ∀{n} → (Γ : SemT (suc n)) → (T : Sem (suc n) Γ → SemT (suc n))
-  → Sem (suc n) (Π Γ T) → Exp (Π Γ T)
-reify Γ T e = {! Γ  !}
+-- I'm not sure this is the right way to do it, since with Godel numberings it would be done in a relational style
+-- consider that in https://plato.stanford.edu/entries/goedel-incompleteness/#DerCon
+-- everything is done relationally, including the construction of G.
+-- see if that is possible here?
+G : Set
+G = SelfProv (_ , (λ term → ¬ SelfProv term))
+
+lemma1 : G → ¬ G
+lemma1 (fst , g) = {!   !}
