@@ -1,6 +1,8 @@
 #lang racket
 
 ;; Not finished, working on reification with debruin indices instead of named variables.
+;; If I can successfully code this, but translating to an Agda implementation STILL involves proving
+;; sub and ren stuff, then this maybe proves that ANY Agda implementation really would have to prove that stuff.
 
 ;; Syntactic domain (Exp)
 (struct lam (e) #:transparent)
@@ -15,21 +17,23 @@
 (define (Sto A B) (SPi A (lambda (a) B)))
 (struct SNe (e) #:transparent) ;; stores neutral forms of Exp.
 
-;; comparing to agda, "ctx" is like "sub" argument. Essentially it stores the same info as data instead of function, mapping from vars in G1 to Exps in G2
-;; for some ways of building subs, list is as good as function. For others, function makes computation easier.
+;; Sem means elements of semantic domain above. GSem means function (ren -> Sem).
+;; Ren is a list of indices, which represents a mapping (Var G1 T -> Var G2 ?T).
+;; Sub is a list of GSem, which represents a mapping (Var G1 T -> GSem G2 ?T).to
+
 ;; Syn -> Sem
-(define (evalImpl ctx e)
+(define (evalImpl sub e)
   (match e
     [(lam e)
-     (lambda (x) (evalImpl (cons x ctx) e))]
+     (lambda (x) (evalImpl (cons x sub) e))]
     [(app e1 e2)
-     ((evalImpl ctx e1) (evalImpl ctx e2))]
+     ((evalImpl sub e1) (evalImpl sub e2))]
     [(varr i)
-     (list-ref ctx i)]
+     (list-ref sub i)]
     [(Pi A B)
-     (SPi (evalImpl ctx A)
+     (SPi (evalImpl sub A)
           (lambda (a)
-            (evalImpl (cons a ctx) B)))]
+            (evalImpl (cons a sub) B)))]
     [(type)
      (Stype)]
     ))

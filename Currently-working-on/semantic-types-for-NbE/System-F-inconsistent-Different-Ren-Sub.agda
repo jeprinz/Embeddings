@@ -69,7 +69,7 @@ idRenT x = x
 
 renSemT tren (all T) = all (λ tren₂ X → T (tren₂ ∘ tren) X) -- huh? no recursion here?
 renSemT tren (var x) = var (tren x)
-renSemT tren (A ⇒ B) = (renSemT tren A) ⇒ (renSemT tren B)
+renSemT tren (A ⇒ B) = {!   !} -- (renSemT tren A) ⇒ (renSemT tren B)
 -- renVar : ∀{Δ₁ Δ₂ Γ T} → (tren : TRen Δ₁ Δ₂) → Var {Δ₁} Γ T
 -- --   → Var {Δ₂} Γ (renSemT tren T)
 -- -- renVar tren x = ?

@@ -15,6 +15,8 @@ data Type : Set where
   _⇒_ : Type → Type → Type
   base : Type
 
+infixr 20 _⇒_
+
 data Ctx : Set where
   ∅ : Ctx
   _,_ : Ctx → Type → Ctx
@@ -28,6 +30,65 @@ data Exp : Ctx → Type → Set where
   lambda : ∀{Γ A B} → Exp (Γ , A) B → Exp Γ (A ⇒ B)
   app : ∀{Γ A B} → Exp Γ (A ⇒ B) → Exp Γ A → Exp Γ B
   ⋆ : ∀{Γ} → Exp Γ base
+
+data CombLog : Type → Set where
+  App : ∀{A B} → CombLog (A ⇒ B) → CombLog A → CombLog B
+  K : ∀{A B} → CombLog (A ⇒ B ⇒ A)
+  S : ∀{A B C} → CombLog ((A ⇒ B ⇒ C) ⇒ (A ⇒ B) ⇒ A ⇒ C)
+  I : ∀{A} → CombLog (A ⇒ A)
+  ⋆ : CombLog base
+
+-- what are the normal forms here?
+data CombNf : Type → Set where
+  K : ∀{A B} → CombNf A → CombNf (B ⇒ A)
+  S : ∀{A B C} → CombNf (A ⇒ B ⇒ C) → CombNf (A ⇒ B) → CombNf (A ⇒ C)
+  I : ∀{A} → CombNf (A ⇒ A)
+  ⋆ : CombNf base
+
+mutual
+  -- normCL : ∀{T} → CombLog T → CombNf T
+  appCL : ∀{A B} → CombNf (A ⇒ B) → CombNf A → CombNf B
+  appCL (K e₁) e₂ = e₁
+  appCL {A} {C} (S {A} {B} {C} e₁ e₃) e₂
+    = appCL3 e₁ e₂ (appCL e₃ e₂)
+    -- = appCL {B} {C} (appCL e₁ e₂) (appCL e₃ e₂)
+    -- = {! appCL {A} {B} e₃ e₂  !}
+    -- = {! appCL {A} {B ⇒ C} e₁ e₂  !}
+  appCL I e = {!   !}
+
+  appCL3 : ∀{A B C} → CombNf (A ⇒ B ⇒ C) → CombNf A → CombNf B → CombNf C
+  appCL3 (K a) b c = appCL a c
+  appCL3 (S a b) c d = appCL3 (appCL a c) (appCL b c) d
+  appCL3 I b c = {!   !}
+
+SimpleSem : Type → Set
+SimpleSem (A ⇒ B) = SimpleSem A → SimpleSem B
+SimpleSem base = CombLog base
+
+SimpleSem2 : Type → Set
+SimpleSem2 (A ⇒ B) = SimpleSem2 A → SimpleSem2 B
+SimpleSem2 base = CombNf base
+
+reifyCombNf : ∀{T} → SimpleSem2 T → CombNf T
+reifyCombNf {(A ⇒ B ⇒ C ⇒ C₁) ⇒ D} e = {!   !}
+reifyCombNf {(A ⇒ B ⇒ base) ⇒ D} e = {!   !}
+reifyCombNf {(A ⇒ base) ⇒ C} e = K (reifyCombNf (e (λ _ → ⋆))) -- probably wrong.
+reifyCombNf {base ⇒ B} e = K (reifyCombNf (e ⋆))
+reifyCombNf {base} e = e
+
+evalSimple : ∀{T} → CombLog T → SimpleSem T
+evalSimple (App e₁ e₂) = (evalSimple e₁) (evalSimple e₂)
+evalSimple K = λ x y → x
+evalSimple S = λ x y z → x z (y z)
+evalSimple I = λ x → x
+evalSimple ⋆ = ⋆
+
+-- evalSimple {base ⇒ base} (K base) =
+-- evalSimple {base ⇒ base} I =
+term1 : CombLog (base ⇒ base)
+term1 = App K ⋆
+term2 : CombLog (base ⇒ base)
+term2 = I
 
 mutual
   data Ne : Ctx → Type → Set where
@@ -129,11 +190,3 @@ e4 = lambda (app (lambda (var same)) (var same))
 
 test4 : normalize e4 ≡ lambda (ne (var same))
 test4 = refl
-------------       testing after this line
-append1ren : ∀{Γ₁ Γ₂} → {T : Type} → Ren Γ₁ Γ₂ → Ren Γ₁ (Γ₂ , T)
-append1ren ren = λ x → next (ren x)
-
-lemma : ∀{Γ₁ Γ₂ Γ₃} → {T : Type}
-  → (ren₁ : Ren Γ₁ Γ₂) → (ren₂ : Ren Γ₂ Γ₃)
-  → append1ren {Γ₁} {Γ₃} {T} (ren₁ ∘ ren₂) ≡ ren₁ ∘ (append1ren {Γ₂} {Γ₃} {T} ren₂)
-lemma ren₁ ren₂ = refl

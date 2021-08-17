@@ -3,9 +3,8 @@ open import Data.Unit
 open import Agda.Primitive
 open import Data.Product
 open import Relation.Binary.PropositionalEquality
-open import Data.Maybe
 
-module test where
+module Current-Best-Iteration where
 
 module S where
 
@@ -158,6 +157,3 @@ subExp sub (app e₁ e₂) = app (subExp sub e₁) (subExp sub e₂)
 subExp sub (Π₀ A B) = Π₀ (subExp sub A) (subExp (forget1sub sub) B)
 subExp sub (Π₁ A B) = Π₁ (subExp sub A) (subExp (forget1sub sub) B)
 subExp sub U₀ = U₀
-
--- checkLam : ∀{sΓ Γ T t} → Exp {sΓ} Γ T t
- asdklf jaslkjfd a

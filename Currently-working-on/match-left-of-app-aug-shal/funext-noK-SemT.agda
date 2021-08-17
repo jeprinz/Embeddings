@@ -1,9 +1,13 @@
+{-# OPTIONS --without-K #-}
+
 open import Data.Unit
 open import Data.Nat
-open import Data.Bool
+open import Data.Maybe
 open import Data.Empty
 open import Data.Product
 open import Relation.Binary.PropositionalEquality
+open import Agda.Primitive
+open import Function
 
 {-
 
@@ -52,24 +56,6 @@ _⇒_ {suc n} A B = Π A (λ _ → B)
 
 typeBool : ∀{n} → SemT (suc n)
 typeBool = Π U (λ X → (cumu X) ⇒ (cumu X ⇒ cumu X))
--- could put Π in SemT₀ and then put cumu outside ⇒'s
--- although would make proof of consistency impossible?
-
--- reifyBool : Sem 2 typeBool → Bool
--- reifyBool e = let a = e (Π U (λ _ → U)) (λ x → x) (λ x → x) in {! a  !}
-
-reifyTest : Sem 2 (U ⇒ U) → ℕ
-reifyTest e = {! e U  !}
-
-{-
-BIG QUESTION: how can I get stuff out of Sems other than Sems?
--- In STLC Sem, you COULD use it like a shallow embedding like I am here!
-   If it wasn't parametrized by Γ and didn't have Nf in base case, thats all you would be able to do.
--- Inspired by unquote-n, need Sem here to output two things: Syn AND Sem
-
-IDEA: if I made a "shallow++" embedding over this instead of standard shallow embedding,
-then both the type and term would be data?
--}
 
 ------------------------  "Shallow" embedding   --------------------------------
 
@@ -155,3 +141,108 @@ exampleType = EΠ EU (EΠ (Ecumu (Evar same)) (Ecumu (Evar (next same))))
 
 exampleTerm : Exp ∅ (extractTerm exampleType) _
 exampleTerm = Elambda (Elambda (Evar same))
+
+--------------------------------------------------------------------------------
+
+data Eq2 {l : Level} {P : Set l} {Q : P → Set l} :
+  (a₁ a₂ : P) → Q a₁ → Q a₂ → Set l where
+  refl : ∀{a b} → Eq2 a a b b
+
+Eq2' : {l : Level} {P : Set l} {Q : P → Set l}
+  → (a₁ a₂ : P) → Q a₁ → Q a₂ → Set l
+Eq2' {l} {P} {Q} a₁ a₂ b₁ b₂
+  = _≡_ {l} {Σ P Q} (a₁ , b₁) (a₂ , b₂)
+
+Eq3 : {l : Level} {P : Set l} {Q : P → Set l} {R : (p : P) → Q p → Set l}
+  → (a₁ a₂ : P) → (b₁ : Q a₁) → (b₂ : Q a₂) → R a₁ b₁ → R a₂ b₂ → Set l
+Eq3 {l} {P} {Q} {R} a₁ a₂ b₁ b₂ c₁ c₂
+  = _≡_ {l} {Σ P (λ a → Σ (Q a) (R a))} (a₁ , b₁ , c₁) (a₂ , b₂ , c₂)
+
+lemma : ∀{n} → {A A' : SemT (suc n)} → {B : Sem (suc n) A → SemT (suc n)}
+  → {B' : Sem (suc n) A' → SemT (suc n)}
+  → (p : Π A B ≡ Π A' B')
+  → Eq2 A A' B B'
+lemma refl = refl
+
+lemma2 : ∀{n} → {A A' : SemT (suc n)} → {B : Sem (suc n) A → SemT (suc n)}
+  → {B' : Sem (suc n) A' → SemT (suc n)}
+  → (p : Π A B ≡ Π A' B')
+  → Eq2' A A' B B'
+lemma2 refl = refl
+
+funExt : ∀{l} {A : Set l} {B : A → Set l} {f g : (x : A) → B x}
+           → ((x : A) → f x ≡ g x) → f ≡ g
+funExt = {!   !} -- p x i
+
+-- funExt2 : ∀{l} {A : Set l} {B : A → Set l} {C : (a : A) → B a → Set l}
+--   → {f₁ f₂ : (a : A) → B a}
+--   → {g₁ : (a : A) → C a (f₁ a)}
+--   → {g₂ : (a : A) → C a (f₂ a)}
+--   → ((a : A) → Eq2 {l} {B a} {C a} (f₁ a) (f₂ a) (g₁ a) (g₂ a) )
+--   → Eq2 f₁ f₂ g₁ g₂
+-- funExt2 p = {! funExt p  !}
+
+happly : ∀ {ℓ} {A : Set ℓ} {B : A → Set ℓ} {f g : (x : A) → B x}
+            → f ≡ g → ((x : A) → f x ≡ g x)
+happly refl x = refl
+
+theorem : ∀{n Γ} → {A A' : Type (suc n) Γ}
+  → {B : Type (suc n) (cons Γ A)}
+  → {B' : Type (suc n) (cons Γ A')}
+  → SΠ A B ≡ SΠ A' B'
+  → Eq2' A A' B B'
+theorem p
+  = cong (λ f → (proj₁ ∘ f , λ (γ , a) → proj₂ (f γ) a)) (funExt (λ γ → lemma2 (happly p γ)))
+
+maybeLamImpl : ∀{n SΓ Γ T t} → Exp {suc n} {SΓ} Γ T t
+  → Maybe (Σ (Type (suc n) SΓ)
+          (λ A → Σ (Type (suc n) (cons SΓ A))
+          (λ B → Σ (Term (cons SΓ A) B)
+          -- (λ t' → Eq2' {_} {Type (suc n) SΓ} {λ T → Term SΓ T}
+              -- (SΠ A B) T (Slambda {_} {SΓ} {A} {B} t') t
+          (λ t' → Σ (T ≡ (SΠ A B))
+          (λ p → Exp (Γ , A) B (λ (γ , a) → (subst (Term SΓ) p t) γ a))))))
+maybeLamImpl {n} {SΓ} {Γ} {T} {t} (Elambda e) = just (_ , _ , (λ (γ , a) → t γ a) , refl , e)
+maybeLamImpl _ = nothing
+
+maybeLamImplTest1 : ∀{n SΓ Γ T t} → Exp {suc n} {SΓ} Γ T t
+  → Maybe (Σ (Type (suc n) SΓ)
+          (λ A → Σ (Type (suc n) (cons SΓ A))
+          (λ B → Σ (Term (cons SΓ A) B)
+          (λ t' → Σ (_≡_ {_} {(γ : SΓ) → Σ (SemT (suc n)) (Sem (suc n))}
+            (λ γ → (T γ , t γ))
+            (λ γ → ((SΠ A B) γ , λ a → t' (γ , a))))
+          (λ p → Exp (Γ , A) B t')))))
+maybeLamImplTest1 (Elambda e) = just (_ , _ , _ , refl , e)
+maybeLamImplTest1 _ = nothing
+
+lemma3 : ∀{n} → {A A' : SemT (suc n)} → {B : Sem (suc n) A → SemT (suc n)}
+  → {B' : Sem (suc n) A' → SemT (suc n)}
+  → ∀{t t'}
+  → (_≡_ {_} {Σ (SemT (suc n)) (Sem (suc n))}
+      ((Π A B) , t)
+      ((Π A' B') , t'))
+  → Eq3 A A' B B' t t'
+lemma3 refl = refl
+
+theorem3 : ∀{n Γ} → {A A' : Type (suc n) Γ}
+  → {B : Type (suc n) (cons Γ A)}
+  → {B' : Type (suc n) (cons Γ A')}
+  → {t : Term (cons Γ A) B}
+  → {t' : Term (cons Γ A') B'}
+  → _≡_ {_} {(γ : Γ) → Σ (SemT (suc n)) (Sem (suc n))}
+      (λ γ → ((SΠ A B) γ , λ a → t (γ , a)))
+      (λ γ → ((SΠ A' B') γ , λ a → t' (γ , a)))
+  → Eq3 A A' B B' t t'
+theorem3 p
+   = ?
+-- theorem p
+--   = cong (λ f → (proj₁ ∘ f , λ (γ , a) → proj₂ (f γ) a)) (funExt (λ γ → lemma2 (happly p γ)))
+
+maybeLam : ∀{n SΓ Γ A B t} → Exp {suc n} {SΓ} Γ (SΠ A B) t
+  → Maybe (Exp (Γ , A) B (λ (γ , a) → t γ a))
+maybeLam {n} {SΓ} {Γ} e with maybeLamImpl e
+... | nothing = nothing
+-- ... | just (A , B , t' , p , e') with (theorem p)
+-- ... | refl = just {!  e' !} -- note that this problem doesn't happen with axiom K because can just pattern match on p
+... | just (A , B , t' , p , e') = just {! e'  !}

@@ -49,7 +49,7 @@ Ren : Ctx → Ctx → Set
 Ren Γ₁ Γ₂ = ∀{T} → InCtx Γ₁ T → InCtx Γ₂ T
 
 weaken1Ren : ∀{Γ T} → Ren Γ (Γ , T)
-weaken1Ren ren = next ren
+weaken1Ren x = next x
 
 forget1ren : ∀{Γ₁ Γ₂ T} → Ren (Γ₁ , T) Γ₂ → Ren Γ₁ Γ₂
 forget1ren ren x = ren (next x)
@@ -125,7 +125,7 @@ unquote-n (lambda e) sub none
 unquote-n (lambda e) sub (one count)
   = λ a → unquote-n e (append1sub sub a) count
 unquote-n (app e₁ e₂) sub count
-  = unquote-n e₁ sub (one count) (λ ren₁ count → unquote-n e₂ (transSR sub ren₁) count)
+  = unquote-n e₁ sub (one count) (λ ren count → unquote-n e₂ (transSR sub ren) count)
 unquote-n ⋆ sub none = ⋆
 
 normalize : ∀{Γ T} → Exp Γ T → Nf Γ T

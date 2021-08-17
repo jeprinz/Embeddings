@@ -1,4 +1,4 @@
-module System-F-inconsistent-old-with-GSem where
+module System-F-inconsistent-GSem where
 
 open import Data.Unit
 open import Data.Nat
@@ -9,8 +9,9 @@ open import Data.Product
 data TCtx : Set -- where
 data TVar : TCtx → Set -- where
 data SemT : TCtx → Set -- where
+GSemT : TCtx → Set
 data Ctx : TCtx → Set -- where
-data Var : ∀{Δ} → Ctx Δ → SemT Δ → Set -- where
+data Var : ∀{Δ} → Ctx Δ → GSemT Δ → Set -- where
 data Nf : (Δ : TCtx) → Ctx Δ → SemT Δ → Set -- where
 data Ne : (Δ : TCtx) → Ctx Δ → SemT Δ → Set -- where
 
@@ -24,10 +25,11 @@ Ren Γ₁ Γ₂ = ∀{T} → Var Γ₁ T → Var Γ₂ T
 TSub : TCtx → TCtx → Set
 TSub Δ₁ Δ₂ = TVar Δ₁ → SemT Δ₂
 
-GSemT : TCtx → Set
 {-# NO_POSITIVITY_CHECK #-}
 data SemT where
-    all : ∀{Δ} → (GSemT Δ → SemT Δ) → SemT Δ
+    -- all : ∀{Δ} → (GSemT Δ → SemT Δ) → SemT Δ
+    -- Π : ∀{Γ} → (A : GSemT Γ) → (∀{Γ'} → (ren : Ren Γ Γ') → Sem (A ren) → SemT Γ') → SemT Γ
+    all : ∀{Δ} → (∀{Δ'} → (ren : TRen Δ Δ') → SemT Δ' → SemT Δ') → SemT Δ
     var : ∀{Δ} → TVar Δ → SemT Δ
     _⇒_ : ∀{Δ} → SemT Δ → SemT Δ → SemT Δ
 
@@ -35,7 +37,8 @@ GSemT Δ = ∀{Δ'} → TRen Δ Δ' → SemT Δ'
 
 GSem : (Δ : TCtx) → SemT Δ → Ctx Δ → Set
 Sem : (Δ : TCtx) → SemT Δ → Ctx Δ → Set
-Sem Δ (all T) Γ = (a : GSemT Δ) → Sem Δ (T a) Γ
+-- Sem Δ (all T) Γ = (a : GSemT Δ) → Sem Δ (T a) Γ
+Sem Δ (all T) Γ = ∀{Δ'} → (ren : TRen Δ Δ') → (X : SemT Δ') → SemT Δ'
 Sem Δ (A ⇒ B) Γ = GSem Δ A Γ → Sem Δ B Γ
 Sem Δ (var X) Γ = Nf Δ Γ (var X)
 
@@ -63,15 +66,25 @@ append1Tsub : ∀{Δ₁ Δ₂} → TSub Δ₁ Δ₂ → SemT Δ₂ → TSub (S �
 append1Tsub sub T same = T
 append1Tsub sub T (next x) = sub x
 
-GCtx : TCtx → Set
 data Ctx where
   ∅ : ∀{Δ} → Ctx Δ
-  _,_ : ∀{Δ} → (Γ : Ctx Δ) → SemT Δ → Ctx Δ
-GCtx Δ = ∀{Δ'} → TRen Δ Δ' → Ctx Δ' -- do I use this somewhere?
+  _,_ : ∀{Δ} → (Γ : Ctx Δ) → GSemT Δ → Ctx Δ
+
+-- What if instead should have SemT in Ctx, but then GCtx????
+
+_∘_ : ∀{Δ₁ Δ₂ Δ₃} → TRen Δ₁ Δ₂ → TRen Δ₂ Δ₃ → TRen Δ₁ Δ₃
+ren₁ ∘ ren₂ = λ x → ren₂ (ren₁ x)
+
+renGSemT : ∀{Δ Δ'} → TRen Δ Δ' → GSemT Δ → GSemT Δ'
+renGSemT ren T = λ ren₂ → T (ren ∘ ren₂)
+
+renCtx : ∀{Δ Δ'} → TRen Δ Δ' → Ctx Δ → Ctx Δ'
+renCtx ren ∅ = ∅
+renCtx ren (Γ , T) = renCtx ren Γ , renGSemT ren T
 
 data Var where
-  same : ∀{Δ Γ T} → Var {Δ} (Γ , T) T
-  next : ∀{Δ Γ T A} → Var {Δ} Γ T → Var (Γ , A) T
+  same : ∀{Δ Γ} → {T : GSemT Δ} → Var {Δ} (Γ , T) T
+  next : ∀{Δ Γ} → {T A : GSemT Δ} → Var {Δ} Γ T → Var (Γ , A) T
 
 -- data Nf : (Δ : TCtx) → Ctx Δ → SemT Δ → Set -- where
 data Ne where
@@ -88,24 +101,20 @@ data Type : TCtx → Set where
 
 evalT : ∀{Δ₁ Δ₂} → Type Δ₁ → TSub Δ₁ Δ₂ → SemT Δ₂
 evalT (A ⇒ B) sub = evalT A sub ⇒ evalT B sub
-evalT (all T) sub = all (λ X → evalT T (append1Tsub sub (X idRenT)))
+evalT (all T) sub = all (λ ren X → evalT T {! append1Tsub sub X  !}) -- all (λ X → evalT T (append1Tsub sub {! X  !}))
 evalT (var x) sub = sub x
 
 reifyT : ∀{Δ} → SemT Δ → Type Δ
-reifyT (all T) = all {! reifyT T  !}
+reifyT (all T) = all (reifyT (T weaken1renT (var same)))
 reifyT (var x) = var x
 reifyT (A ⇒ B) = reifyT A ⇒ reifyT B
 
 -- parametrized by GSemT? Then couldn't do pattern matching on types
 data Exp : (Δ : TCtx) → Ctx Δ → SemT Δ → Set where
-  var : ∀{Δ Γ T} → Var {Δ} Γ T → Exp Δ Γ T
+  var : ∀{Δ Γ} → {T : GSemT Δ} → Var {Δ} Γ T → Exp Δ Γ (T idRenT)
   lambda : ∀{Δ Γ A B} → Exp Δ Γ (A ⇒ B) → Exp Δ Γ A → Exp Δ Γ B
-
-  -- OK, here is the problem. Things dont seem like they make sense...
-  -- Lambda : ∀{Δ Γ} → {T : SemT (S Δ)}
-    -- → Exp (S Δ) {!   !} T → Exp Δ {!   !} (all {! λ X → sub T X  !} )
-  Lambda : ∀{Δ Γ} → {T : ∀{Δ'} → TRen Δ Δ' → GSemT Δ' → SemT Δ'}
-    → Exp (S Δ) {!   !} (T weaken1renT (λ ren → var (ren same))) → Exp Δ {!   !} (all (T idRenT) )
+  Lambda : ∀{Δ Γ} → {T : {Δ' : TCtx} → TRen Δ Δ' → SemT Δ' → SemT Δ'}
+    → Exp (S Δ) (renCtx weaken1renT Γ) (T weaken1renT (var same)) → Exp Δ Γ (all T)
 
   {-
   TODO:
@@ -125,7 +134,7 @@ data Exp : (Δ : TCtx) → Ctx Δ → SemT Δ → Set where
 
 
   -- seems fishy that would put a GSemT in source, considering GSem is generic and could return different types at different renamings.
-  App : ∀{Δ Γ T} → Exp Δ Γ (all T) → (A : GSemT Δ) → Exp Δ Γ (T A)
+  -- App : ∀{Δ Γ T} → Exp Δ Γ (all T) → (A : GSemT Δ) → Exp Δ Γ (T A)
 
 canireify : ∀{Δ} → GSemT Δ → ℕ
 canireify T = {! T  !}

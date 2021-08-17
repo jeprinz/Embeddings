@@ -1,9 +1,19 @@
+-- {-# OPTIONS --without-K #-}
+{-# OPTIONS --type-in-type #-}
+{-
+IDEA: maybe can fix the type-in-type issue by making Γ at level n for SemT n.
+Then, contexts can only hold stuff from lower levels.
+-}
+
 open import Data.Unit
 open import Data.Nat
 open import Data.Bool
+open import Data.Maybe
 open import Data.Empty
 open import Data.Product
 open import Relation.Binary.PropositionalEquality
+open import Agda.Primitive
+open import Function
 
 {-
 
@@ -12,32 +22,98 @@ shallow embedding. Doesn't seem to gain particularly much from doing this.
 
 -}
 
+Sub : Set → Set → Set
+Sub Γ₁ Γ₂ = Γ₂ → Γ₁
+
+idRen : ∀{Γ} → Sub Γ Γ
+idRen γ = γ
+
 data SemTzero : Set where
 Semzero : SemTzero → Set
 Semzero ()
 
-module sucn (SemTn : Set) (Semn : SemTn → Set) where
+module sucn (SemTn : Set → Set) (Semn : (Γ : Set) → SemTn Γ → Set) where
   mutual
-    data SemTsucn : Set where
-        U : SemTsucn
-        Π : (A : SemTsucn) → (Semsucn A → SemTsucn) → SemTsucn
-        cumu : SemTn → SemTsucn
+    data SemTsucn (Γ : Set) : Set where
+        U : SemTsucn Γ
+        Π : (A : ∀{Γ'} → Sub Γ Γ' → SemTsucn Γ')
+          → (∀{Γ'} → (ren : Sub Γ Γ') → Semsucn Γ' (A ren) → SemTsucn Γ') → SemTsucn Γ
+        cumu : SemTn Γ → SemTsucn Γ
+        ne : (Γ → SemTsucn Γ) → SemTsucn Γ
 
-    Semsucn : SemTsucn → Set
-    Semsucn U = SemTn
-    Semsucn (Π A B) = (a : Semsucn A) → Semsucn (B a)
-    Semsucn (cumu T) = Semn T
+    Semsucn : (Γ : Set) → SemTsucn Γ → Set
+    Semsucn Γ U = Γ → SemTn Γ
+    Semsucn Γ (Π A B)
+      = (a : ∀{Γ'} → (ren : Sub Γ Γ') → Semsucn Γ' (A ren)) → Semsucn Γ (B idRen (a idRen))
+    Semsucn Γ (cumu T) = Semn Γ T
+    Semsucn Γ (ne e) = (γ : Γ) → Semsucn Γ (e γ)
 
 open sucn
 
 mutual
-  SemT : ℕ → Set
-  SemT zero = SemTzero
-  SemT (suc n) = sucn.SemTsucn (SemT n) (Sem n)
+  SemT : ℕ → Set → Set
+  SemT zero Γ = SemTzero
+  SemT (suc n) Γ = sucn.SemTsucn (SemT n) (Sem n) Γ
 
-  Sem : (n : ℕ) → SemT n → Set
-  Sem zero T = Semzero T
-  Sem (suc n) T = sucn.Semsucn _ _ T
+  Sem : (n : ℕ) → (Γ : Set) → SemT n Γ → Set
+  Sem zero Γ T = Semzero T
+  Sem (suc n) Γ T = sucn.Semsucn _ _ Γ T
+
+Ctx = Set
+cons : ∀{n} → (Γ : Ctx) → SemT n Γ → Ctx
+cons Γ T = Σ Γ (λ γ → Sem _ Γ T)
+
+nil : Ctx
+nil = ⊤
+
+forget1ren : ∀{n Γ} → {T : SemT n Γ} → Sub Γ (cons Γ T)
+forget1ren (γ , t) = γ
+
+test : Sem 1 nil (Π (λ ren → U ) (λ ren _ → U))
+test = λ T → T idRen
+
+test2 : Sem 1 (cons nil U) U
+test2 = λ (_ , T) → T tt
+
+
+subSemT : ∀{n Γ₁ Γ₂} → Sub Γ₁ Γ₂ → SemT n Γ₁ → SemT n Γ₂
+subSemT {suc n} ren U = U
+subSemT {suc n} ren (Π A B)
+  = Π (λ ren₁ → A (ren ∘ ren₁)) (λ ren₁ → B (ren ∘ ren₁))
+subSemT {suc n} ren (cumu T) = cumu (subSemT ren T)
+subSemT {suc n} ren (ne e) = ne (λ γ₂ → subSemT ren (e (ren γ₂)))
+
+-- toNothing : ∀{} → Γ → SemT n Γ → SemT n ⊤
+-- toSomething : ∀{} → (Γ → SemT n ⊤) → SemT n Γ
+-- toSomething' : ∀{} → SemT n Γ → (Γ → SemT n ⊤)
+-- subSemTMore : ∀{n Γ₁ Γ₂} → (Γ₂ → Γ₁) → SemT n Γ₁ → SemT n Γ₂
+-- toSomethingMore : ∀{} → (Γ₂ → SemT n Γ₁) → (Γ₂ → Γ₁) → SemT n Γ₂
+-- toSomethingMore' : ∀{} → (Γ₂ → Γ₁) → SemT n Γ₂ → (Γ₂ → SemT n Γ₁)
+
+-- won't work, because I need nApp.
+Svar : ∀{n Γ} → {A : SemT (suc n) Γ}
+  → Sem (suc n) (cons Γ A) (subSemT (forget1ren {suc n} {_} {A}) A) -- (λ γ → (A (proj₁ γ)))
+Svar = {!   !} -- ne ?
+
+append1sub : ∀{n Γ₁ Γ₂} → (A : SemT n Γ₁) → (sub : Sub Γ₁ Γ₂)
+  → (Γ₂ → Sem n Γ₁ A) → Sub (cons Γ₁ A) Γ₂
+append1sub A sub a γ = sub γ , a γ
+
+-- append1sub : ∀{n Γ₁ Γ₂} → (A : SemT n Γ₁) → (sub : Sub Γ₁ Γ₂) → Sem n Γ₂ (subSemT sub A) → Sub (cons Γ₁ A) Γ₂
+-- append1sub A sub a γ = sub γ , {! a  !}
+
+SΠ : ∀{n Γ} → (A : SemT (suc n) Γ) → SemT (suc n) (cons Γ A) → SemT (suc n) Γ
+-- SΠ A B = λ γ → Π (A γ) ((λ a → B (γ , a)))
+SΠ A B = Π (λ sub → subSemT sub A) (λ sub a → subSemT (append1sub A sub {! toSomething sub ? !} ) B)
+
+-- renSem : ∀{n Γ₁ Γ₂} → (ren : Sub Γ₁ Γ₂) → (T : SemT n Γ₁)
+--   → Sem n Γ₁ T → Sem n Γ₂ (subSemT ren T)
+-- renSem {suc n} ren U T = subSemT ren T
+-- renSem {suc n} ren (Π A B) e = renSem ren {! B forget1ren ()  !} (e ?)
+-- renSem {suc n} ren (cumu T) e = {!   !}
+-- renSem {suc n} ren (ne T) e = {!   !}
+
+{-
 
 type⊥ : ∀{n} → SemT (2 + n)
 type⊥ = Π U λ X → cumu X
@@ -52,42 +128,12 @@ _⇒_ {suc n} A B = Π A (λ _ → B)
 
 typeBool : ∀{n} → SemT (suc n)
 typeBool = Π U (λ X → (cumu X) ⇒ (cumu X ⇒ cumu X))
--- could put Π in SemT₀ and then put cumu outside ⇒'s
--- although would make proof of consistency impossible?
-
--- reifyBool : Sem 2 typeBool → Bool
--- reifyBool e = let a = e (Π U (λ _ → U)) (λ x → x) (λ x → x) in {! a  !}
-
-reifyTest : Sem 2 (U ⇒ U) → ℕ
-reifyTest e = {! e U  !}
-
-{-
-BIG QUESTION: how can I get stuff out of Sems other than Sems?
--- In STLC Sem, you COULD use it like a shallow embedding like I am here!
-   If it wasn't parametrized by Γ and didn't have Nf in base case, thats all you would be able to do.
--- Inspired by unquote-n, need Sem here to output two things: Syn AND Sem
-
-IDEA: if I made a "shallow++" embedding over this instead of standard shallow embedding,
-then both the type and term would be data?
--}
 
 ------------------------  "Shallow" embedding   --------------------------------
-
-Ctx = Set
-Type : ℕ → Ctx → Set
-Type n Γ = Γ → SemT n
-Term : ∀{n} → (Γ : Ctx) → Type n Γ → Set
-Term Γ T = (γ : Γ) → Sem _ (T γ)
-nil : Ctx
-nil = ⊤
-cons : ∀{n} → (Γ : Ctx) → Type n Γ → Ctx
-cons Γ T = Σ Γ (λ γ → Sem _ (T γ))
 
 SU : ∀{n Γ} → Type (suc n) Γ
 SU = λ _ → U
 
-SΠ : ∀{n Γ} → (A : Type (suc n) Γ) → Type (suc n) (cons Γ A) → Type (suc n) Γ
-SΠ A B = λ γ → Π (A γ) ((λ a → B (γ , a)))
 
 Slambda : ∀{n Γ} → {A : Type (suc n) Γ} → {B : Type (suc n) (cons Γ A)}
   → Term (cons Γ A) B → Term Γ (SΠ A B)
@@ -97,8 +143,6 @@ Sapp : ∀{n Γ} → {A : Type (suc n) Γ} → {B : Type (suc n) (cons Γ A)}
   → Term Γ (SΠ A B) → (e₂ : Term Γ A) → Term Γ (λ γ → B (γ , e₂ γ))
 Sapp e₁ e₂ = λ γ → (e₁ γ) (e₂ γ)
 
-Svar : ∀{n Γ} → {A : Type (suc n) Γ} → Term (cons Γ A) (λ γ → (A (proj₁ γ)))
-Svar = proj₂
 
 Sweaken : ∀{n Γ} → {T A : Type n Γ} → Term Γ T → Term (cons Γ A) (λ γ → (T (proj₁ γ)))
 Sweaken e = λ γ → e (proj₁ γ)
@@ -155,3 +199,4 @@ exampleType = EΠ EU (EΠ (Ecumu (Evar same)) (Ecumu (Evar (next same))))
 
 exampleTerm : Exp ∅ (extractTerm exampleType) _
 exampleTerm = Elambda (Elambda (Evar same))
+-}

@@ -1,4 +1,3 @@
-{-# OPTIONS --cumulativity #-}
 open import Data.Unit
 open import Data.Product
 open import Data.Bool
@@ -37,15 +36,10 @@ mutual
 Ren : Ctx → Ctx → Set
 Ren Γ₁ Γ₂ = ∀{T} → InCtx Γ₁ T → InCtx Γ₂ T
 
-forget1ren : ∀{Γ₁ Γ₂ T} → Ren (Γ₁ , T) Γ₂ → Ren Γ₁ Γ₂
-forget1ren ren x = ren (next x)
-
-idRen : ∀{Γ} → Ren Γ Γ
-idRen x = x
-
 append1ren : ∀{Γ Γ' T} → Ren Γ Γ' → Ren (Γ , T) (Γ' , T)
 append1ren ren same = same
 append1ren ren (next x) = next (ren x)
+
 mutual
   renNe : ∀{Γ Γ' T} → Ren Γ Γ' → Ne Γ T → Ne Γ' T
   renNf : ∀{Γ Γ' T} → Ren Γ Γ' → Nf Γ T → Nf Γ' T
@@ -55,90 +49,77 @@ mutual
   renNf ren (ne e) = ne (renNe ren e)
   renNf ren ⋆ = ⋆
 
--- Point is that Sem doesn't refer to Context or Nf
-Sem : Set → Type → Set₁
-Sem X (A ⇒ B) = {X' : Set} → (X → X') → Sem X' A → Sem X' B
-Sem X base = X -- X is Nf Γ base
+forget1ren : ∀{Γ₁ Γ₂ T} → Ren (Γ₁ , T) Γ₂ → Ren Γ₁ Γ₂
+forget1ren ren x = ren (next x)
 
-mutual
-  nApp3 : ∀{T X} → X → Sem X T
-  nApp3 {A ⇒ B} x = λ ren g → nApp3 {B} (reify3 g)
-  nApp3 {base} x = x
-
-  reify3 : ∀{T X} → Sem X T → X
-  reify3 {A ⇒ B} e = {! lambda  !}
-  reify3 {base} e = e
-
-  {-
-  nApp : ∀{Γ T} → Ne Γ T → Sem (Nf Γ base) T
-  nApp {_} {A ⇒ B} e = λ ren g → {!   !}
-  nApp {_} {base} e = ne e
-  -- nApp {_} {A ⇒ B} e = λ ren g → nApp (app (renNe ren e) (reify g))
-  -- nApp {_} {base} e = ne e
-
-  nApp2 : ∀{Γ T X} → Ne Γ T → (Nf Γ base → X) → Sem X T
-  nApp2 {_} {A ⇒ B} e f
-    = λ ren g → nApp2 (nApp2 (app {! e  !} {!  !} ) {!   !} ) {!   !}
-  nApp2 {_} {base} e f = f (ne e)
-
-  reify2 : ∀{Γ T X} → Sem X T → (X → Nf Γ base) → Nf Γ T
-  reify2 {Γ} {A ⇒ B} g f = lambda (reify2 {!   !} {!   !} )
-  reify2 {Γ} {base} g f = f g
-
-  reify : ∀{Γ T} → Sem (Nf Γ base) T → Nf Γ T
-  reify {Γ} {A ⇒ B} g = lambda (reify (g (renNf (forget1ren idRen)) (nApp (var same))))
-  reify {Γ} {base} g = g
-  -- reify {Γ} {A ⇒ B} g = lambda (reify (g (forget1ren idRen) (nApp (var same))))
-  -- reify {Γ} {base} g = g
-  -}
-
--- mutual
---   Sem : Set → Type → Set₁
---   Sem X (A ⇒ B) = GSem X A → Sem X B
---   Sem X base = X -- Nf Γ base
---
---   GSem : Set → Type → Set₁
---   GSem X T = {X' : Set} → (X → X') → Sem X' T
---
--- mutual
---   nApp : ∀{Γ T} → Ne Γ T → Sem (Nf Γ base) T
---   nApp {_} {A ⇒ B} e = λ g → nApp (app e {! reify g  !} )
---   nApp {_} {base} e = ne e
---
---   reify : ∀{Γ T} → GSem (Nf Γ base) T → Nf Γ T
---   reify {Γ} {A ⇒ B} g
---     = lambda (reify λ ren → g {!   !} {!   !} )
---   reify {Γ} {base} g = {!   !}
-{-
-
-Sub : Ctx → Ctx → Set
-Sub Γ₁ Γ₂ = ∀{T} → InCtx Γ₁ T → GSem Γ₂ T
-
-idSub : ∀{Γ} → Sub Γ Γ
-idSub x ren = nApp (var (ren x))
-
--- liftSub : ∀{Γ₁ Γ₂ T} → Sub Γ₁ Γ₂ → Sub (Γ₁ , T) (Γ₂ , T)
--- liftSub sub same ren = nApp (var (ren same))
--- liftSub sub (next x) ren = sub x (forget1ren ren)
+idRen : ∀{Γ} → Ren Γ Γ
+idRen x = x
 
 _∘_ : ∀{A B C} → Ren A B → Ren B C → Ren A C
 s₁ ∘ s₂ = λ x → s₂ (s₁ x)
 
-transSR : ∀{Γ₁ Γ₂ Γ₃} → Sub Γ₁ Γ₂ → Ren Γ₂ Γ₃ → Sub Γ₁ Γ₃
-transSR sub ren x ren₂ = sub x (ren ∘ ren₂)
+Sem1 : Ctx → Type → Set
+Sem1 Γ (A ⇒ B) = ∀{Γ'} → Ren Γ Γ' → Sem1 Γ' A → Sem1 Γ' B -- alternate form!
+Sem1 Γ base = Nf Γ base
 
-append1sub : ∀{Γ₁ A Γ₂} → Sub Γ₁ Γ₂ → GSem Γ₂ A → Sub (Γ₁ , A) Γ₂
-append1sub sub e same ren = e ren
-append1sub sub e (next x) ren = sub x ren
+renSem1 : ∀{Γ₁ Γ₂ T} → Ren Γ₁ Γ₂ → Sem1 Γ₁ T → Sem1 Γ₂ T
+renSem1 {_} {_} {A ⇒ B} ren e = λ ren₁ a → e (ren ∘ ren₁) a
+renSem1 {_} {_} {base} ren e = renNf ren e
+
+Sem : Ctx → Type → Set
+Sem Γ (A ⇒ B) = (∀{Γ'} → Ren Γ' Γ → Sem Γ' A) → Sem Γ B
+Sem Γ base = Nf Γ base
+
+renSem : ∀{Γ₁ Γ₂ T} → Ren Γ₁ Γ₂ → Sem Γ₁ T → Sem Γ₂ T
+renSem {_} {_} {A ⇒ B} ren e = λ g → renSem ren (e (λ ren₂ → g (ren₂ ∘ ren)))
+renSem {_} {_} {base} ren e = renNf ren e
+
+weaken1Ren : ∀{Γ T} → Ren Γ (Γ , T)
+weaken1Ren x = next x
+
+mutual
+  nApp : ∀{Γ T} → Ne Γ T → Sem Γ T
+  -- nApp {_} {A ⇒ B} e = λ ren g → nApp (app (renNe ren e) (reify g))
+  nApp {_} {A ⇒ B} e = λ g → nApp (app e (reify (g idRen)))
+  nApp {_} {base} e = ne e
+
+  reify : ∀{Γ T} → Sem Γ T → Nf Γ T
+  -- reify {Γ} {A ⇒ B} g = lambda (reify (g (forget1ren idRen) (nApp (var same))))
+  reify {Γ} {A ⇒ B} g = lambda (reify (renSem weaken1Ren (g {! nApp (var same)  !} )))
+  reify {Γ} {base} g = g
+{-
+
+Sub : Ctx → Ctx → Set
+Sub Γ₁ Γ₂ = ∀{T} → InCtx Γ₁ T → Sem Γ₂ T -- if Sub instead outputted a GSem, could renSem,renNf, and renNe be avoided?
+
+idSub : ∀{Γ} → Sub Γ Γ
+idSub x = nApp (var x)
+
+_∘_ : ∀{A B C} → Ren A B → Ren B C → Ren A C
+s₁ ∘ s₂ = λ x → s₂ (s₁ x)
+
+renSem : ∀{Γ₁ Γ₂ T} → Ren Γ₁ Γ₂ → Sem Γ₁ T → Sem Γ₂ T
+renSem {_} {_} {A ⇒ B} ren e = λ ren₁ a → e (ren ∘ ren₁) a
+renSem {_} {_} {base} ren e = renNf ren e
+
+transSR : ∀{Γ₁ Γ₂ Γ₃} → Sub Γ₁ Γ₂ → Ren Γ₂ Γ₃ → Sub Γ₁ Γ₃
+transSR sub ren x = renSem ren (sub x)
+
+append1sub : ∀{Γ₁ A Γ₂} → Sub Γ₁ Γ₂ → Sem Γ₂ A → Sub (Γ₁ , A) Γ₂
+append1sub sub e same = e
+append1sub sub e (next x) = sub x
 
 eval : ∀{Γ₁ Γ₂ T} → Exp Γ₁ T → Sub Γ₁ Γ₂ → Sem Γ₂ T
-eval (var x) sub = sub x idRen
-eval (lambda e) sub = λ a → eval e (append1sub sub a)
-eval (app e₁ e₂) sub = (eval e₁ sub) (λ ren₁ → eval e₂ (transSR sub ren₁))
+eval (var x) sub = sub x
+-- eval (lambda e) sub = λ a → eval e (append1sub sub a)
+eval (lambda e) sub = λ ren a → eval e (append1sub (transSR sub ren) a)
+-- eval (app e₁ e₂) sub = (eval e₁ sub) (λ ren₁ → eval e₂ (transSR sub ren₁))
+eval (app e₁ e₂) sub = (eval e₁ sub) idRen (eval e₂ sub)
 eval ⋆ sub = ⋆
 
 normalize : ∀{Γ T} → Exp Γ T → Nf Γ T
-normalize e = reify (λ ren → eval e (transSR idSub ren))
+-- normalize e = reify (λ ren → eval e (transSR idSub ren))
+normalize e = reify (eval e idSub)
 
 -- some examples to test it out:
 

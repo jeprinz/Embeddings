@@ -132,3 +132,9 @@ e4 = lambda (app (lambda (var same)) (var same))
 
 test4 : normalize e4 ≡ lambda (ne (var same))
 test4 = refl
+
+
+-- ------------------------------------ TEST --------------------------------------
+-- weaken1Sub : ∀{Γ₁ Γ₂} → (sub : Sub Γ₁ Γ₂)
+--   → (T : Type) → Sub (Γ₁ , T) (Γ₂ , T)
+-- weaken1Sub sub T = {!   !}

@@ -35,7 +35,7 @@ data Ctx where
   ∅ : Ctx
   _,_ : (Γ : Ctx) → SemT Γ → Ctx
 
--- _∘_ : ∀{Γ₁ Γ₂ Γ₃} → Ren Γ₁ Γ₂ → Ren Γ₂ Γ₃ → Ren Γ₁ Γ₃
+_∘_ : ∀{Γ₁ Γ₂ Γ₃} → Ren Γ₁ Γ₂ → Ren Γ₂ Γ₃ → Ren Γ₁ Γ₃
 -- data Ren where
 --   ∅ : Ren ∅ ∅
 --   append : ∀{Γ₁ Γ₂} → Ren Γ₁ Γ₂ → {T : GSemT Γ₂} → Ren Γ₁ (Γ₂ , T)
@@ -44,6 +44,7 @@ data Ctx where
 renSemT : ∀{Γ₁ Γ₂} → (ren : Ren Γ₁ Γ₂) → SemT Γ₁ → SemT Γ₂
 applyRen : ∀{Γ₁ Γ₂} → {T : SemT Γ₁} → (ren : Ren Γ₁ Γ₂) → Var Γ₁ T → Var Γ₂ (renSemT ren T)
 idRen : ∀{Γ} → Ren Γ Γ
+-- TODO: rename this
 append1ren : ∀{Γ₁ Γ₂ T} → Ren Γ₁ Γ₂ → Ren Γ₁ (Γ₂ , T)
 data Ren where
   ∅ : ∀{Γ} → Ren ∅ Γ
@@ -53,31 +54,32 @@ data Ren where
     → Var Γ₂ (renSemT ren T)
     → Ren (Γ₁ , T) Γ₂
 
--- forget1ren : ∀{Γ} →
 weaken1Ren : ∀{Γ T} → Ren Γ (Γ , T)
 weaken1Ren {∅} {T} = ∅
-weaken1Ren {Γ , A} {T} = cons {!   !} {!   !}
-
--- idRen2 : ∀{Γ} → Ren Γ Γ
--- idRen2 same = same
--- idRen2 (next x) = next (idRen2 x)
-
-idRen {∅} = ∅
-idRen {Γ , T} = cons {! next   !} {!   !} -- even if can fill in first hole, second hole wont work...
+weaken1Ren {Γ , A} {T} = cons (append1ren weaken1Ren) {!   !}
 
 data Var where
-  -- same : ∀{Γ} → {T : SemT Γ} → Var (Γ , T) (renSemT (append1ren idRen) T)
+  same : ∀{Γ} → {T : SemT Γ} → Var (Γ , T) (renSemT (append1ren idRen) T)
   -- same : ∀{Γ} → {T : GSemT Γ} → Var (Γ , T idRen) (T (append1ren idRen))
   -- next : ∀{Γ} → {T A : GSemT Γ}
-    -- → Var Γ A → Var (Γ , T) (λ r → A (forget1ren ∘ r))
+    -- → Var Γ A → Var (Γ , T) (λ r → A (append1ren ∘ r))
   next : ∀{Γ} → {T A : SemT Γ}
     → Var Γ A → Var (Γ , T) (renSemT (append1ren idRen) A)
+  -- next : ∀{Γ} → {T A : SemT Γ}
+    -- → Var Γ A → Var (Γ , T) (renSemT weaken1Ren A)
+
+idRen {∅} = ∅
+-- idRen {Γ , T} = cons {! next   !} {!   !} -- even if can fill in first hole, second hole wont work...
+idRen {Γ , T} = cons (append1ren idRen) same
 
 append1ren ∅ = ∅
 append1ren (cons ren x) = cons (append1ren ren) {! next x  !}
 
-applyRen = {!   !}
-renSemT = {!   !}
+renSemT ren U = U
+renSemT ren (Π A B) = Π (λ ren₂ → A (ren ∘ ren₂)) (λ a → {! B a  !} )
+renSemT ren (ne e) = {!   !}
+applyRen (cons ren x₁) same = {! x₁  !}
+applyRen (cons ren x₁) (next x) = {!   !}
 
 
 

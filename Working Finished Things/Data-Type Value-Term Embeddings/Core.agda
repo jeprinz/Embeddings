@@ -6,6 +6,12 @@ open import Data.Product
 
 {-
 
+NOTE: apparently this is standard (I think), see:
+https://en.wikipedia.org/wiki/Induction-recursion#Universe_example
+In other work, I have seen my "SemT" referred to as a "Kipling universe"
+
+------------------------------------------------------------------------
+
 This is a model for dependent type theory in dependent type theory where types
 are represented by a type called SemT, but terms are still represented by terms.
 

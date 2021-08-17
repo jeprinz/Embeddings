@@ -231,9 +231,6 @@ subCtx : ∀{Δ₁ Δ₂} → TSub Δ₁ Δ₂ → Ctx Δ₁ → Ctx Δ₂
 subCtx tsub ∅ = ∅
 subCtx tsub (Γ , T) = subCtx tsub Γ , subSemT tsub T
 
--- subVar : ∀{Δ₁ Δ₂ T} → {Γ : } → TSub Δ₁ Δ₂ → Var Δ₁ T → Var Δ₂ ?
--- subVar tsub same = same
--- subVar tsub (next x) = {!   !}
 subVar : ∀{Δ₁ Δ₂ T} → {Γ : Ctx Δ₁} → (tsub : TSub Δ₁ Δ₂)
   → Var Γ T → Var (subCtx tsub Γ) (subSemT tsub T)
 subVar tsub same = same
