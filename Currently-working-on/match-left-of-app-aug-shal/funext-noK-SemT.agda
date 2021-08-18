@@ -235,14 +235,14 @@ theorem3 : ∀{n Γ} → {A A' : Type (suc n) Γ}
       (λ γ → ((SΠ A' B') γ , λ a → t' (γ , a)))
   → Eq3 A A' B B' t t'
 theorem3 p
-   = ?
--- theorem p
---   = cong (λ f → (proj₁ ∘ f , λ (γ , a) → proj₂ (f γ) a)) (funExt (λ γ → lemma2 (happly p γ)))
+   = cong (λ f → (proj₁ ∘ f , (λ (γ , a) → proj₁ (proj₂ (f γ)) a) , λ (γ , a) → proj₂ (proj₂ (f γ)) a))
+      (funExt (λ γ → lemma3 (happly p γ)))
 
 maybeLam : ∀{n SΓ Γ A B t} → Exp {suc n} {SΓ} Γ (SΠ A B) t
   → Maybe (Exp (Γ , A) B (λ (γ , a) → t γ a))
-maybeLam {n} {SΓ} {Γ} e with maybeLamImpl e
+maybeLam {n} {SΓ} {Γ} e with maybeLamImplTest1 e
 ... | nothing = nothing
 -- ... | just (A , B , t' , p , e') with (theorem p)
 -- ... | refl = just {!  e' !} -- note that this problem doesn't happen with axiom K because can just pattern match on p
-... | just (A , B , t' , p , e') = just {! e'  !}
+... | just (A , B , t' , p , e') with (theorem3 p)
+... | refl = just e'
