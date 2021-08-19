@@ -15,7 +15,7 @@ open import Function
 
 {-
 
-It turns out to be possible to do β-reduction (nor full on normalization, just a
+It turns out to be possible to do β-reduction (not full on normalization, just a
 single reduction) with augmented shallow embeddings. Two things are necessary
 for this:
 1) Use a datatype encoding of the universe of types, here "SemT"
@@ -24,9 +24,9 @@ for this:
   off axiom K, and used only the non-dependent version of function extentionality.
 
   In order to implement function extentionality, I use two postulates and a
-  rewrite rule. This gives the necessary computation. I see no reason that this
-  stuff wouldn't work in any theory which supports computational function
-  extentionality, however.
+  rewrite rule. This gives the necessary computation.
+  I believe that this implementation is equivalent to what you would get from
+  e.g. cubical type theory, but I don't know enough to confirm that for sure.
 
 -}
 
@@ -290,6 +290,8 @@ maybeLam {n} {SΓ} {Γ} e with maybeLamImpl e
 
 term1 : Exp {2} ∅ SU SU
 term1 = Eapp (Elambda (Evar same)) EU
+-- (λ x . x) U
 
+-- (λ x . x) U  =  U
 test : βreduce term1 ≡ EU
 test = refl
