@@ -11,6 +11,7 @@ open import Data.Bool
 open import Data.Maybe
 open import Data.Empty
 open import Data.Product
+open import Data.Sum
 open import Relation.Binary.PropositionalEquality
 open import Agda.Primitive
 open import Function
@@ -112,6 +113,13 @@ SΠ A B = Π (λ sub → subSemT sub A) (λ sub a → subSemT (append1sub A sub 
 -- renSem {suc n} ren (Π A B) e = renSem ren {! B forget1ren ()  !} (e ?)
 -- renSem {suc n} ren (cumu T) e = {!   !}
 -- renSem {suc n} ren (ne T) e = {!   !}
+
+{-# TERMINATING #-}
+SemT2 : Ctx → Set
+SemT2 Γ =
+  ⊤ -- U
+  ⊎ Σ (SemT2 Γ) (λ A → {! SemT2  !}) -- Π
+  ⊎ {!   !} -- cumu
 
 {-
 
