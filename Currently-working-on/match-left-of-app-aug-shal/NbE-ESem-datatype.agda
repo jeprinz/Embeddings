@@ -237,57 +237,97 @@ mutual
     fromNe : ∀{n SΓ Γ T} → Ne {suc n} {SΓ} Γ SU T → EType Γ T
 
 ------------------ Semantic domain, parametrized by shallow --------------------
+data ESemTzero : {SΓ : Ctx} → (Γ : Context SΓ) → (T : Type 0 SΓ) → Set₁ where
+data ESemzero : ∀{SΓ} → (Γ : Context SΓ) → (T : Type 0 SΓ) → Term SΓ T → Set₁ where
 
 module Esucn (n : ℕ)
-  (ESemTn : ∀{n} → {SΓ : Ctx} → (Γ : Context SΓ) → (T : Type n SΓ) → Set₁)
-  (ESemn : ∀{n SΓ} → (Γ : Context SΓ) → (T : Type n SΓ) → Term SΓ T → ESemTn Γ T → Set₁)
+  (ESemTn : {SΓ : Ctx} → (Γ : Context SΓ) → (T : Type n SΓ) → Set₁)
+  (ESemn : ∀{SΓ} → (Γ : Context SΓ) → (T : Type n SΓ) → Term SΓ T → Set₁)
   where
+  mutual
+    data ESemTsucn : {SΓ : Ctx} → (Γ : Context SΓ) → (T : Type (suc n) SΓ)
+      → Set₁ where
+      EU : {SΓ : Ctx} → {Γ : Context SΓ} → ESemTsucn {SΓ} Γ SU
+      fromNe : ∀{SΓ Γ T} → Ne {suc (suc n)} {SΓ} Γ SU T → ESemTsucn Γ T -- why 2 sucs?
+      Ecumu : {SΓ : Ctx} → {Γ : Context SΓ} → ∀{a}
+        → ESemTn Γ a → ESemTsucn Γ (ScumuT a)
+      EΠ : {SΓ : Ctx} → {Γ : Context SΓ}
+        → {a₁ : Term SΓ (SU {suc n})}
+        → {a₂ : Type (suc n) (cons SΓ a₁)}
+        → (A : ∀{SΓ' Γ'} → {ren : Sub SΓ SΓ'} → ERen ren Γ Γ' → ESemTsucn Γ' (subType ren a₁))
+        → (B : ∀{SΓ' Γ'} → {ren : Sub SΓ SΓ'} → (eren : ERen ren Γ Γ') → ∀{a}
+            → ESemsucn Γ' (subType ren a₁) a -- (A eren)
+            → ESemTsucn Γ' (subType (append1sub' a₁ ren a) a₂))
+        → ESemTsucn Γ (SΠ {n} a₁ a₂)
+
+    -- ESemsucn : ∀{SΓ} → (Γ : Context SΓ) → (T : Type (suc n) SΓ)
+    --   → Term SΓ T → ESemTsucn Γ T → Set₁
+    -- ESemsucn Γ ST St EU = ESemTn Γ St
+    -- ESemsucn Γ ST St (fromNe e) = Nf Γ ST St -- NOTE: if Ne is parametrized specifically by Ne in SHALLOW embedding, then that will help here later...
+    -- ESemsucn Γ ST St (Ecumu T) = ESemn Γ _ St T
+    -- ESemsucn {SΓ} Γ ST St (EΠ {_} {_} {SA} {SB} A B)
+    --   = ∀{SΓ' Γ'} → {ren : Sub SΓ SΓ'} → (eren : ERen ren Γ Γ') → ∀{Sa}
+    --     → (a : ESemsucn Γ' _ Sa (A eren))
+    --       → ESemsucn Γ' _ (λ γ → St (ren γ) (Sa γ)) (B eren a)
+
+    -- Why does ESem have to be parametrized be ESemT?
+    -- Instead of matching in SemT and then that determines the type of the Sem, just match on the Sem itself and get the value from it.
+    data ESemsucn : ∀{SΓ} → (Γ : Context SΓ) → (T : Type (suc n) SΓ)
+      → Term SΓ T → Set₁ where
+      -- each constructor is a case based on ESemT
+      EU : ∀{SΓ St} → {Γ : Context SΓ} → ESemTn Γ St → ESemsucn Γ SU St
+      fromNe : ∀{SΓ Γ ST St} → Nf {_} {SΓ} Γ ST St → ESemsucn Γ ST St  -- TODO: do I need Ne arg from ESemT? ST should be Ne.
+      Ecumu : ∀{SΓ Γ ST St} → ESemn {SΓ} Γ ST St
+        → ESemsucn Γ (ScumuT ST) (Scumu {_} {_} {ST} St)
+      EΠ : ∀{SΓ} → {Γ : Context SΓ}
+        → {a₁ : Term SΓ (SU {suc n})}
+        → {a₂ : Type (suc n) (cons SΓ a₁)}
+        → {St : Term SΓ (SΠ a₁ a₂)}
+        → (∀{SΓ' Γ'} → (ren : Sub SΓ SΓ') → (Sa : Term SΓ' (subType ren a₁))
+            -- → ESemsucn Γ' (subType ren a₁) Sa -- TODO: Do I even need this?????
+            → ESemsucn Γ' (subType (append1sub' a₁ ren Sa) a₂) (λ γ → St (ren γ) (Sa γ)))
+        → ESemsucn Γ (SΠ a₁ a₂) St
+open Esucn
 
 mutual
-  data ESemT : ∀{n} → {SΓ : Ctx} → (Γ : Context SΓ) → (T : Type n SΓ)
-    → Set₁ where
-    EU : ∀{n} → {SΓ : Ctx} → {Γ : Context SΓ} → ESemT {suc (suc n)} {SΓ} Γ SU
-    fromNe : ∀{n SΓ Γ T} → Ne {suc n} {SΓ} Γ SU T → ESemT Γ T
-    Ecumu : ∀{n} → {SΓ : Ctx} → {Γ : Context SΓ} → ∀{a}
-      → ESemT {n} Γ a → ESemT Γ (ScumuT a)
-    EΠ : ∀{n} → {SΓ : Ctx} → {Γ : Context SΓ}
-      → {a₁ : Term SΓ (SU {suc n})}
-      → {a₂ : Type (suc n) (cons SΓ a₁)}
-      → (A : ∀{SΓ' Γ'} → {ren : Sub SΓ SΓ'} → ERen ren Γ Γ' → ESemT Γ' (subType ren a₁))
-      → (B : ∀{SΓ' Γ'} → {ren : Sub SΓ SΓ'} → (eren : ERen ren Γ Γ') → ∀{a}
-          → ESem Γ' (subType ren a₁) a (A eren)
-          → ESemT Γ' (subType (append1sub' a₁ ren a) a₂))
-      → ESemT Γ (SΠ {n} a₁ a₂)
+  ESemT : ∀{n} → {SΓ : Ctx} → (Γ : Context SΓ) → (T : Type n SΓ) → Set₁
+  ESemT {zero} = ESemTzero
+  ESemT {suc n} = ESemTsucn n (ESemT {n}) (ESem {n})
 
-  -- Should ESem be a function instead? Sem is usually a function on SemT.
-  -- However, maybe I should follow the pattern of stuff only being parametrized
-  -- by shallow types and terms.
+  ESem : ∀{n SΓ} → (Γ : Context SΓ) → (T : Type n SΓ) → Term SΓ T → Set₁
+  ESem {zero} = ESemzero
+  ESem {suc n} = ESemsucn n (ESemT {n}) (ESem {n})
 
-  ESem : ∀{n SΓ} → (Γ : Context SΓ) → (T : Type n SΓ)
-    → Term SΓ T → ESemT Γ T → Set₁
-  ESem Γ ST St EU = ESemT Γ St
-  ESem Γ ST St (fromNe e) = Nf Γ ST St -- NOTE: if Ne is parametrized specifically by Ne in SHALLOW embedding, then that will help here later...
-  ESem Γ ST St (Ecumu T) = {!  ESem Γ ? ? T !} -- ESem Γ St T
-  ESem {n} {SΓ} Γ ST St (EΠ {_} {_} {_} {SA} {SB} A B)
-    = ∀{SΓ' Γ'} → {ren : Sub SΓ SΓ'} → (eren : ERen ren Γ Γ') → ∀{Sa}
-      → (a : ESem Γ' _ Sa (A eren))
-        -- → ESem Γ' _ (Sapp {_} {_} {subType ren SA} {subType (forget1ren ren SA) SB} (subExp ren St) Sa) (B eren a)
-        → ESem Γ' _ (λ γ → St (ren γ) (Sa γ)) (B eren a)
+eval : ∀{n SΓ₁ SΓ₂ Γ₁ Γ₂ ST St}
+  → Exp {n} {SΓ₁} Γ₁ ST St
+  → (sub : Sub SΓ₁ SΓ₂)
+  → ESem Γ₂ (subType sub ST) (subExp {_} {_} {_} {ST} sub St)
+eval (Elambda {_} {_} {_} {A} e) sub = EΠ (λ ren Sa {-a-} → eval e (append1sub' A (sub ∘ ren) Sa))
+eval (Evar icx) sub  = {! sub icx  !}
+eval (Eapp e₁ e₂) sub  = {! (eval e₁ sub)  !} -- I Think this case shows why this makes no sense!
+eval (EΠ e e₁) sub  = {!   !}
+eval EU sub  = {! ESemTsucn.EU  !}
+eval (EcumuValue e) sub  = {!   !}
+eval (Ecumu e) sub  = {!   !}
 
--- TODO:
--- 2) fix positivity check issue with module trick from SemT above.
+{-
 
 mutual
   reifyT : ∀{n SΓ Γ ST} → (T : ESemT {n} {SΓ} Γ ST) → EType Γ ST
   reifyT T = {!   !}
 
-  nApp : ∀{n SΓ Γ ST St} → (T : ESemT Γ ST) → Ne {n} {SΓ} Γ ST St → ESem Γ ST St T
-  nApp EU e = {!   !}
+  nApp : ∀{n SΓ Γ ST St} → (T : ESemT Γ ST) → Ne {suc n} {SΓ} Γ ST St → ESem Γ ST St T
+  nApp EU e = {! fromNe  !}
   nApp (fromNe x) e = fromNe e -- something something with η-expanded form, the other cases shouldn't be able to be defined like this...
-  nApp (Ecumu T) e = {!   !}
-  nApp (EΠ A B) e = {!   !} -- λ eren a → nApp {! B Eweaken1Ren (nApp (A Eweaken1Ren) ? )  !} {!   !}
+  nApp (Ecumu T) e = {! nApp T e  !}
+  nApp (EΠ A B) e
+    = {!   !}
+    -- = λ eren t → nApp {!   !} (Eapp {! e  !} {! reify t  !})
+    --  = λ eren a → nApp {! B Eweaken1Ren (nApp (A Eweaken1Ren) ? )  !} {!   !}
+  -- FROM STLC:
+  -- nApp {_} {A ⇒ B} e = λ ren g → nApp (app (renNe ren e) (reify g))
 
-  reify : ∀{n SΓ Γ ST St} → (T : ESemT {n} {SΓ} Γ ST) → ESem Γ ST St T
+  reify : ∀{n SΓ Γ ST St} → (T : ESemT {suc n} {SΓ} Γ ST) → ESem Γ ST St T
     → Nf Γ ST St
   reify EU t = fromType (reifyT t)
   reify (fromNe x) t = t
@@ -295,3 +335,25 @@ mutual
   reify (EΠ A B) t
     = Elambda (reify (B Eweaken1Ren (nApp (A Eweaken1Ren) (Evar same)))
                       (t Eweaken1Ren (nApp (A Eweaken1Ren) (Evar same))))
+
+evalT : ∀{n SΓ₁ SΓ₂ Γ₁ Γ₂ ST}
+  → (sub : Sub SΓ₁ SΓ₂)
+  → EType {suc n} {SΓ₁} Γ₁ ST
+  → ESemT Γ₂ (subType sub ST)
+evalT sub (EΠ {_} {_} {_} {a₁} A B) = EΠ (λ {_} {_} {ren} eren → evalT (sub ∘ ren) A)
+  (λ {_} {_} {ren} eren {Sa} a → evalT (append1sub' a₁ (sub ∘ ren) Sa) B)
+evalT sub EU = EU
+evalT sub (Ecumu T) = {!   !} -- Ecumu (evalT sub T)
+evalT sub (fromNe e) = fromNe {!  evalNe sub SU e !}
+
+-- NOTE: remember, one possibility is that ESem should actually be datatype and not
+-- parametrized by ESemT. Not sure if that actually makes any sense or not.
+
+
+{-
+TODO
+1) Rename these to nAppsucn and reifysucn because they work on suc n???
+2) Define renaming on Nf, Ne, EType, OR otherwise switch to GSem implementation
+
+-}
+-}

@@ -58,7 +58,6 @@
 (define (transSR sub ren)
   (match sub
     ['() '()]
-    ;; here, e : n -> ren -> Exp
     [(cons e sub) (cons (lambda (n ren2) (e n (transRR ren ren2))) (transSR sub ren))]))
 
 ;; Note that e : Exp,  but the terms in sub are not Exp, rather are (n -> ren -> Exp)

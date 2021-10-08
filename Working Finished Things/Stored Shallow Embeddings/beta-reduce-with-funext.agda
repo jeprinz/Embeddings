@@ -295,3 +295,16 @@ term1 = Eapp (Elambda (Evar same)) EU
 -- (λ x . x) U  =  U
 test : βreduce term1 ≡ EU
 test = refl
+
+{-
+
+NOTE: the presence of funext implies some wierd things with shallow embeddings.
+e.g., take the context Γ = {ℕ, String, ⊥}.
+This context cannot be instantiated, so I call it uninstantiable.
+
+Any two types or terms in an uninstantiable context are equal by function extentionality.
+Therefore, any combination of constructors for an Exp type can be validly put
+together in an uninstantiable context.
+
+
+-}

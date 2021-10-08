@@ -117,6 +117,8 @@ data Exp : {sΓ : S.Ctx} → (Γ : Context sΓ) → (T : S.Type sΓ)
     → (B : Exp (Γ , s₁) S.U₁ s₂)
     → Exp Γ S.U₁ (S.Π₁ s₁ s₂)
   U₀ : {sΓ : S.Ctx} → {Γ : Context sΓ} → Exp {sΓ} Γ S.U₁ S.U₀
+  cumu₀ : {sΓ : S.Ctx} → {Γ : Context sΓ} → ∀{T}
+    → Exp {sΓ} Γ S.U₀ T → Exp {sΓ} Γ S.U₁ T
 
 Ren : ∀{sΓ₁ sΓ₂} → S.Sub sΓ₁ sΓ₂ → Context sΓ₁ → Context sΓ₂ → Set j
 Ren sub Γ₁ Γ₂ = ∀{T t} → Var Γ₁ T t → Var Γ₂ (S.subType sub T) (S.subExp sub t)
@@ -140,6 +142,7 @@ renExp ren (app e₁ e₂) = app (renExp ren e₁) (renExp ren e₂)
 renExp ren (Π₀ A B) = Π₀ (renExp ren A) (renExp (forget1ren ren) B)
 renExp ren (Π₁ A B) = Π₁ (renExp ren A) (renExp (forget1ren ren) B)
 renExp ren U₀ = U₀
+renExp ren (cumu₀ T) = cumu₀ (renExp ren T)
 
 Sub : ∀{sΓ₁ sΓ₂} → S.Sub sΓ₁ sΓ₂ → Context sΓ₁ → Context sΓ₂ → Set j
 Sub sub Γ₁ Γ₂ = ∀{T t} → Var Γ₁ T t → Exp Γ₂ (S.subType sub T) (S.subExp sub t)
@@ -157,3 +160,4 @@ subExp sub (app e₁ e₂) = app (subExp sub e₁) (subExp sub e₂)
 subExp sub (Π₀ A B) = Π₀ (subExp sub A) (subExp (forget1sub sub) B)
 subExp sub (Π₁ A B) = Π₁ (subExp sub A) (subExp (forget1sub sub) B)
 subExp sub U₀ = U₀
+subExp sub (cumu₀ T) = cumu₀ (subExp sub T)
