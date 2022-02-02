@@ -180,6 +180,10 @@ test : ∀{n SΓ Γ T SpT hts t} → Exp {n} {SΓ} Γ T SpT hts t → ℕ
 test (Evar icx) = {!   !}
 test (Eapp e e₁) = {! e₁  !}
 
+test1 : ∀{n SΓ Γ T t A B hts} → Exp {n} {SΓ} Γ T (Π A B) hts t → ℕ
+test1 (Evar icx) = {!   !}
+test1 (Eapp e e₁) = {!   !}
+
 lemmaA : ∀{n Γ} → {A A' : Type (suc n) Γ} → {B : Type (suc n) (cons Γ A)}
   → {B' : Type (suc n) (cons Γ A')}
   → {SpA SpB SpA' SpB' : TSpine}

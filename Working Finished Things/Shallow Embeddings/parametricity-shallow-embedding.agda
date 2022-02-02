@@ -225,3 +225,6 @@ Either way, try typing "ctrl-n PexType" or "ctrl-n PexTerm" in order to make agd
 They are parametricity for the identity function!
 
 -}
+
+PexType2 : PType₁ Pnil (Π₁ U₀ U₀) (Π₁ U₀ U₀)
+PexType2 = PΠ₁ Pnil (PU₀ Pnil) (PU₀ (Pcons₁ Pnil (PU₀ Pnil)))

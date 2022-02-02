@@ -1,0 +1,12 @@
+Direct next step with embedding stuff
+(I will come back to extrinsic ideas later, idk what will happen with them)
+
+-- COMPLETE THE ONE DIRECTIONAL NBE ALREADY !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Start with shallow, then work to augmented shallow.
+
+If it doesn't work - better to find now
+If it does work - good to have a concrete result
+
+Next step - see if can parametrize the augmented embedding that gets evaled also
+with SemT and Sem so that it can be two way! (Probably won't work, but worth a try...)

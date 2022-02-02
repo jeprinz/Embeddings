@@ -143,3 +143,60 @@ test4 = refl
 
 -- term : Exp ∅ ((base ⇒ base) ⇒ base ⇒ (base ⇒ base ⇒ base) ⇒ base)
 -- term = lambda (lambda (lambda (app (app (var same) {!   !}) {!   !})))
+
+
+_==_ : ∀{Γ₁ Γ₂} → Ren Γ₁ Γ₂ → Ren Γ₁ Γ₂ → Set
+_==_ {Γ₁} ren₁ ren₂ = ∀{T} → (x : InCtx Γ₁ T) → ren₁ x ≡ ren₂ x
+
+Refl : ∀{Γ₁ Γ₂} → (ren : Ren Γ₁ Γ₂) → ren == ren
+Refl ren x = refl
+
+congapp1 : ∀{Γ₁ Γ₂ T} → (ren₁ ren₂ : Ren Γ₁ Γ₂)
+  → ren₁ == ren₂ → (append1ren {_} {_} {T} ren₁) == (append1ren ren₂)
+congapp1 ren₁ ren₂ p same = refl
+congapp1 ren₁ ren₂ p (next x) = cong next (p x)
+
+mutual
+  respectFuncNf : ∀{Γ₁ Γ₂ T} → (ren₁ ren₂ : Ren Γ₁ Γ₂)
+    → ren₁ == ren₂
+    → (e : Nf Γ₁ T)
+    → renNf ren₁ e ≡ renNf ren₂ e
+  respectFuncNf ren₁ ren₂ p (lambda e)
+    = cong lambda (respectFuncNf (append1ren ren₁) (append1ren ren₂) (congapp1 _ _ p) e)
+  respectFuncNf ren₁ ren₂ p (ne x) = cong ne (respectFuncNe _ _ p _)
+
+  respectFuncNe : ∀{Γ₁ Γ₂ T} → (ren₁ ren₂ : Ren Γ₁ Γ₂)
+    → ren₁ == ren₂
+    → (e : Ne Γ₁ T)
+    → renNe ren₁ e ≡ renNe ren₂ e
+  respectFuncNe ren₁ ren₂ p (var x) = cong var (p x)
+  respectFuncNe ren₁ ren₂ p (app e₁ e₂) = cong₂ app (respectFuncNe _ _ p _) (respectFuncNf _ _ p e₂)
+  respectFuncNe ren₁ ren₂ p ⋆ = refl
+
+lemma1 : ∀{Γ₁ Γ₂ Γ₃ T}
+  → (ren₁ : Ren Γ₁ Γ₂) → (ren₂ : Ren Γ₂ Γ₃)
+  → ((append1ren {_} {_} {T} ren₁) ∘ (append1ren ren₂)) ==
+    (append1ren (ren₁ ∘ ren₂))
+lemma1 ren₁ ren₂ same = refl
+lemma1 ren₁ ren₂ (next x) = refl
+
+mutual
+  lemmaNf : ∀{Γ₁ Γ₂ Γ₃ T} → (ren₁ : Ren Γ₁ Γ₂) → (ren₂ : Ren Γ₂ Γ₃)
+    → (e : Nf Γ₁ T) → renNf ren₂ (renNf ren₁ e) ≡ renNf (ren₁ ∘ ren₂) e
+  lemmaNf ren₁ ren₂ (lambda e)
+    = cong lambda (trans (lemmaNf (append1ren ren₁) (append1ren ren₂) e)
+                        (respectFuncNf _ _ (lemma1 _ _) _))
+  lemmaNf ren₁ ren₂ (ne x) = cong ne (lemmaNe _ _ x)
+
+  lemmaNe : ∀{Γ₁ Γ₂ Γ₃ T} → (ren₁ : Ren Γ₁ Γ₂) → (ren₂ : Ren Γ₂ Γ₃)
+    → (e : Ne Γ₁ T) → renNe ren₂ (renNe ren₁ e) ≡ renNe (ren₁ ∘ ren₂) e
+  lemmaNe ren₁ ren₂ (var icx) = refl
+  lemmaNe ren₁ ren₂ (app e₁ e₂) = cong₂ app (lemmaNe _ _ _) (lemmaNf _ _ _)
+  lemmaNe ren₁ ren₂ ⋆ = refl
+
+  -- TODO: how to deal with renamings such that this kind of stuff is
+  -- easy to prove? Intuitively, this is obvious: a renaming will only apply
+  -- to variables, and so anything which is true about appying a renaming
+  -- to a variable should be true about applying a renaming to terms;
+  -- they are just a box with a bunch of variables in it, as far as renamings
+  -- are concerned.

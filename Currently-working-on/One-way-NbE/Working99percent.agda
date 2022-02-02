@@ -312,6 +312,22 @@ mutual
   ESem {zero} = ESemzero
   ESem {suc n} = ESemsucn n (ESemT {n}) (ESem {n})
 
+{-
+
+Current question: How to build shallow embedding on top of SemT and Sem?
+
+-}
+
+SCtx = Set
+SType : ℕ → SCtx → Set
+SType n Γ = Γ → ESemT n
+STerm : ∀{n} → (Γ : SCtx) → SType n Γ → Set
+STerm Γ T = (γ : Γ) → Sem _ (T γ)
+-- nil : Ctx
+-- nil = ⊤
+-- cons : ∀{n} → (Γ : Ctx) → Type n Γ → Ctx
+-- cons Γ T = Σ Γ (λ γ → Sem _ (T γ))
+
 mutual
   {-
   Why don't these functions pass Agda's termination checker?
@@ -363,12 +379,3 @@ TODO
 -- eval {suc .(suc _)} T EU = {!   !}
 -- eval {suc n} T (EcumuValue e) = {!   !}
 -- eval {suc .(suc _)} T (Ecumu e) = {!   !}
-
-test : ∀{n SΓ Γ ST St} →  Exp {n} {SΓ} Γ ST St → Exp Γ ST St → ℕ
-test {.(suc _)} {SΓ} (Elambda e₁) e₂ = {! e₂  !}
-test {n} {SΓ} (Evar icx) e₂ = {!   !}
-test {.(suc _)} {SΓ} (Eapp e₁ e₃) e₂ = {!   !}
-test {.(suc (suc _))} {SΓ} (EΠ e₁ e₃) e₂ = {!   !}
-test {.(suc (suc _))} {SΓ} EU e₂ = {!   !}
-test {.(suc _)} {SΓ} (EcumuValue e₁) e₂ = {!   !}
-test {.(suc (suc _))} {SΓ} (Ecumu e₁) e₂ = {!   !}
